@@ -1,9 +1,9 @@
 """
-GST AutoFlow v2.0 — Professional Edition
-Login + 3-Module Dashboard: GSTR-2A Recon · Invoice OCR · Payment Recon
+GST AutoFlow v2.1 — Persistent header · Session history · Login always accessible
 """
 import streamlit as st
 import tempfile, os, shutil
+from datetime import datetime
 import pandas as pd
 from gst_autoflow import (
     reconcile, generate_report,
@@ -17,7 +17,6 @@ from gst_autoflow.dashboard import (
     ocr_confidence_chart, ocr_amount_table,
 )
 
-# ── Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="GST AutoFlow",
     page_icon="📊",
@@ -28,373 +27,293 @@ st.set_page_config(
 MAX_EXCEL_MB = 5
 MAX_PDF_MB   = 10
 
-# Demo credentials (replace with env vars / secrets in production)
 USERS = {
     "demo":  {"password": "Demo@2024",     "name": "Demo User",  "role": "Viewer"},
     "admin": {"password": "GSTAdmin@2024", "name": "Admin",      "role": "Admin"},
 }
 
-# ── Global CSS ────────────────────────────────────────────────────────────
+# ── Session state defaults ─────────────────────────────────────────────
+for k, v in {
+    "authenticated": False,
+    "username": "",
+    "display_name": "",
+    "role": "",
+    "history": [],          # list of dicts: {time, module, summary}
+    "active_tab": 0,
+}.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
+
+# ── Global CSS ─────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Font & Base ── */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-html, body, [class*="css"] {
-    font-family: 'Inter', sans-serif !important;
-}
+html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
+#MainMenu, footer { visibility: hidden; }
+header[data-testid="stHeader"] { display: none !important; }
+.block-container { padding-top: 0 !important; padding-bottom: 2rem !important; max-width: 1200px !important; }
 
-/* ── Hide default Streamlit chrome ── */
-#MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 1.5rem !important; padding-bottom: 2rem !important; }
-
-/* ── Top header bar ── */
-.app-header {
-    background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-    margin-bottom: 1.5rem;
+/* ── TOP NAVBAR — always visible ── */
+.topbar {
+    background: #0d1b2a;
+    padding: 0 1.5rem;
+    height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    box-shadow: 0 4px 15px rgba(26,115,232,0.25);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    margin: -1rem -4rem 0 -4rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
-.app-header h1 {
-    color: white !important;
-    font-size: 1.6rem !important;
-    font-weight: 700 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-.app-header .tagline {
-    color: rgba(255,255,255,0.85);
-    font-size: 0.85rem;
-    margin-top: 2px;
-}
-.header-badge {
-    background: rgba(255,255,255,0.2);
+.topbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     color: white;
-    padding: 4px 12px;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+.topbar-brand span { color: #4da6ff; font-size: 1.3rem; }
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.user-badge {
+    background: rgba(77,166,255,0.15);
+    border: 1px solid rgba(77,166,255,0.35);
+    color: #a8c8ff !important;
+    padding: 5px 12px;
     border-radius: 20px;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 500;
 }
+.role-badge {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.5) !important;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+}
 
-/* ── Login card ── */
-.login-wrapper {
+/* ── Module nav bar ── */
+.module-nav {
+    background: white;
+    border-bottom: 2px solid #e8eaf0;
+    padding: 0 1.5rem;
     display: flex;
-    justify-content: center;
     align-items: center;
-    min-height: 70vh;
+    gap: 4px;
+    margin: 0 -4rem 1.5rem -4rem;
+    position: sticky;
+    top: 56px;
+    z-index: 998;
+}
+.nav-tab {
+    padding: 14px 18px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    white-space: nowrap;
+}
+.nav-tab.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    font-weight: 600;
+}
+.nav-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.history-btn {
+    background: #f0f7ff;
+    border: 1px solid #c2d9ff;
+    color: #1a73e8 !important;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* ── Login page ── */
+.login-page {
+    min-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 100%);
+    margin: 0 -4rem;
+    padding: 2rem;
 }
 .login-card {
     background: white;
     border-radius: 16px;
-    padding: 2.5rem;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.12);
-    max-width: 420px;
+    padding: 2.5rem 2.5rem;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.1);
     width: 100%;
-    border: 1px solid #e8eaf0;
+    max-width: 420px;
+    border: 1px solid #e0eaff;
 }
-.login-logo {
-    text-align: center;
-    margin-bottom: 1.5rem;
-}
-.login-logo h2 {
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: #1a73e8;
-    margin: 0;
-}
-.login-logo p {
-    color: #666;
-    font-size: 0.875rem;
-    margin: 4px 0 0 0;
-}
-.demo-creds {
+.login-header { text-align: center; margin-bottom: 1.75rem; }
+.login-header h1 { font-size: 1.75rem; font-weight: 700; color: #1a73e8; margin: 0.5rem 0 0; }
+.login-header p  { color: #888; font-size: 0.875rem; margin: 0.25rem 0 0; }
+.demo-box {
     background: #f0f7ff;
     border: 1px solid #c2d9ff;
     border-radius: 8px;
-    padding: 0.75rem 1rem;
+    padding: 0.7rem 1rem;
     margin-bottom: 1.25rem;
     font-size: 0.8rem;
     color: #1a56a0;
+    line-height: 1.6;
 }
-.demo-creds strong { color: #0d47a1; }
+
+/* ── Section header ── */
+.section-header { border-left: 4px solid #1a73e8; padding-left: 0.75rem; margin-bottom: 1.25rem; }
+.section-header h2 { font-size: 1.15rem; font-weight: 600; color: #1a1a2e; margin: 0; }
+.section-header p  { font-size: 0.82rem; color: #666; margin: 3px 0 0; }
 
 /* ── Metric cards ── */
 div[data-testid="metric-container"] {
-    background: #f8faff;
-    border: 1px solid #e3eaff;
-    border-radius: 10px;
-    padding: 0.75rem 1rem !important;
+    background: #f8faff; border: 1px solid #e3eaff;
+    border-radius: 10px; padding: 0.75rem 1rem !important;
     box-shadow: 0 2px 8px rgba(26,115,232,0.07);
 }
 div[data-testid="metric-container"] label {
-    font-size: 0.75rem !important;
-    font-weight: 600 !important;
-    color: #5c6bc0 !important;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 0.72rem !important; font-weight: 600 !important;
+    color: #5c6bc0 !important; text-transform: uppercase; letter-spacing: 0.5px;
 }
 div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
-    font-size: 1.5rem !important;
-    font-weight: 700 !important;
-    color: #1a1a2e !important;
-}
-
-/* ── Section headers ── */
-.section-header {
-    border-left: 4px solid #1a73e8;
-    padding-left: 0.75rem;
-    margin-bottom: 1rem;
-}
-.section-header h2 {
-    font-size: 1.2rem !important;
-    font-weight: 600 !important;
-    color: #1a1a2e !important;
-    margin: 0 !important;
-}
-.section-header p {
-    font-size: 0.82rem;
-    color: #666;
-    margin: 2px 0 0 0;
+    font-size: 1.45rem !important; font-weight: 700 !important; color: #1a1a2e !important;
 }
 
 /* ── File uploader ── */
 div[data-testid="stFileUploader"] {
     border: 2px dashed #c2d9ff !important;
-    border-radius: 10px !important;
-    background: #f8faff !important;
-    transition: border-color 0.2s;
-}
-div[data-testid="stFileUploader"]:hover {
-    border-color: #1a73e8 !important;
+    border-radius: 10px !important; background: #f8faff !important;
 }
 
-/* ── Primary button ── */
+/* ── Buttons ── */
 div[data-testid="stButton"] > button[kind="primary"] {
     background: linear-gradient(135deg, #1a73e8, #1557b0) !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    font-size: 0.9rem !important;
-    padding: 0.6rem 1.5rem !important;
+    border: none !important; border-radius: 8px !important;
+    font-weight: 600 !important; font-size: 0.9rem !important;
     box-shadow: 0 3px 10px rgba(26,115,232,0.3) !important;
-    transition: all 0.2s !important;
 }
-div[data-testid="stButton"] > button[kind="primary"]:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 5px 15px rgba(26,115,232,0.4) !important;
+div[data-testid="stButton"] > button[kind="secondary"] {
+    border-radius: 8px !important; font-size: 0.85rem !important;
 }
 
-/* ── Tabs ── */
-div[data-testid="stTabs"] button {
-    font-weight: 500 !important;
-    font-size: 0.9rem !important;
-    padding: 0.5rem 1.25rem !important;
-}
-div[data-testid="stTabs"] button[aria-selected="true"] {
-    color: #1a73e8 !important;
-    font-weight: 700 !important;
-}
-
-/* ── Sidebar ── */
-section[data-testid="stSidebar"] {
-    background: #0d1b2a !important;
-}
-section[data-testid="stSidebar"] * {
-    color: #e8eaf0 !important;
-}
-.sidebar-logo {
-    text-align: center;
-    padding: 1rem 0;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    margin-bottom: 1rem;
-}
-.sidebar-logo h2 {
-    color: #4da6ff !important;
-    font-size: 1.3rem;
-    font-weight: 700;
-    margin: 0;
-}
-.sidebar-logo p {
-    color: rgba(255,255,255,0.5) !important;
-    font-size: 0.75rem;
-    margin: 4px 0 0 0;
-}
-.user-pill {
-    background: rgba(77,166,255,0.15);
-    border: 1px solid rgba(77,166,255,0.3);
-    border-radius: 8px;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 1rem;
+/* ── History panel ── */
+.history-card {
+    background: #fafbff;
+    border: 1px solid #e3eaff;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
     font-size: 0.82rem;
 }
-.nav-item {
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    margin-bottom: 0.25rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.nav-item:hover { background: rgba(255,255,255,0.05); }
-.nav-item.active { background: rgba(77,166,255,0.15); color: #4da6ff !important; font-weight: 600; }
+.history-card .time { color: #999; font-size: 0.72rem; }
+.history-card .module { font-weight: 600; color: #1a73e8; }
+.history-empty { text-align: center; color: #aaa; padding: 2rem; font-size: 0.85rem; }
+
+/* ── Tabs ── */
+div[data-testid="stTabs"] button { font-weight: 500 !important; }
+div[data-testid="stTabs"] button[aria-selected="true"] { color: #1a73e8 !important; font-weight: 700 !important; }
 
 /* ── Footer ── */
 .app-footer {
-    text-align: center;
-    color: #aaa;
-    font-size: 0.75rem;
-    margin-top: 2.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #f0f0f0;
+    text-align: center; color: #bbb; font-size: 0.75rem;
+    margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #f0f0f0;
 }
 .app-footer a { color: #1a73e8; text-decoration: none; }
-
-/* ── Expander ── */
-div[data-testid="stExpander"] {
-    border: 1px solid #e8eaf0 !important;
-    border-radius: 8px !important;
-}
-
-/* ── Alert boxes ── */
-div[data-testid="stAlert"] {
-    border-radius: 8px !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
 
 # ════════════════════════════════════════════════════════════════════════
-#  AUTH — Session State Login
-# ════════════════════════════════════════════════════════════════════════
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-    st.session_state.username = ""
-    st.session_state.display_name = ""
-    st.session_state.role = ""
-
-def do_login(username, password):
-    u = username.strip().lower()
-    if u in USERS and USERS[u]["password"] == password:
-        st.session_state.authenticated = True
-        st.session_state.username = u
-        st.session_state.display_name = USERS[u]["name"]
-        st.session_state.role = USERS[u]["role"]
-        return True
-    return False
-
-def do_logout():
-    for k in ["authenticated", "username", "display_name", "role"]:
-        st.session_state[k] = "" if k != "authenticated" else False
-    st.rerun()
-
-
-# ── Login Page ─────────────────────────────────────────────────────────
-if not st.session_state.authenticated:
-    col_l, col_m, col_r = st.columns([1, 1.2, 1])
-    with col_m:
-        st.markdown("""
-        <div style='text-align:center; margin: 3rem 0 2rem 0;'>
-            <div style='font-size:3rem;'>📊</div>
-            <h1 style='font-size:1.8rem; font-weight:700; color:#1a73e8; margin:0.5rem 0 0 0;'>GST AutoFlow</h1>
-            <p style='color:#666; font-size:0.9rem; margin:0.25rem 0 0 0;'>Know your GST health before your CA does.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="demo-creds">
-            <strong>🔑 Demo Access</strong><br>
-            Username: <strong>demo</strong> &nbsp;|&nbsp; Password: <strong>Demo@2024</strong>
-        </div>
-        """, unsafe_allow_html=True)
-
-        with st.form("login_form", clear_on_submit=False):
-            username = st.text_input("Username", placeholder="Enter username")
-            password = st.text_input("Password", type="password", placeholder="Enter password")
-            submitted = st.form_submit_button("Sign In →", type="primary", use_container_width=True)
-
-            if submitted:
-                if do_login(username, password):
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password.")
-
-        st.markdown("""
-        <div style='text-align:center; margin-top:1.5rem; color:#aaa; font-size:0.75rem;'>
-            GST AutoFlow v2.0 &nbsp;·&nbsp; Built by 
-            <a href='https://sudheer-029.github.io' target='_blank' style='color:#1a73e8;'>Sudheer Bishnoi</a>
-        </div>
-        """, unsafe_allow_html=True)
-    st.stop()
-
-
-# ════════════════════════════════════════════════════════════════════════
-#  SIDEBAR — Authenticated
+#  SIDEBAR — always present, never critical
 # ════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown("""
-    <div class="sidebar-logo">
-        <h2>📊 GST AutoFlow</h2>
-        <p>v2.0 Professional</p>
+    <div style="text-align:center; padding:1rem 0 0.5rem;">
+        <div style="font-size:2rem;">📊</div>
+        <div style="font-weight:700; font-size:1.1rem; color:#1a73e8;">GST AutoFlow</div>
+        <div style="font-size:0.72rem; color:#aaa; margin-top:2px;">v2.1 · India GST Suite</div>
     </div>
     """, unsafe_allow_html=True)
-
-    st.markdown(f"""
-    <div class="user-pill">
-        👤 &nbsp;<strong>{st.session_state.display_name}</strong><br>
-        <span style='font-size:0.72rem; opacity:0.7;'>{st.session_state.role} · {st.session_state.username}</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("**Modules**")
-    st.markdown("""
-    <div class="nav-item active">🔄 &nbsp;GSTR-2A Reconciliation</div>
-    <div class="nav-item">🧾 &nbsp;Invoice OCR Parser</div>
-    <div class="nav-item">💳 &nbsp;Payment Reconciliation</div>
-    """, unsafe_allow_html=True)
-
     st.divider()
-    st.markdown("**Sample Files**")
-    st.caption("Download to try the app:")
 
-    # Sample data downloads
-    sample_dir = os.path.join(os.path.dirname(__file__), "sample_data")
+    if st.session_state.get("authenticated"):
+        st.markdown(f"""
+        <div style="background:#f0f7ff; border:1px solid #c2d9ff; border-radius:8px;
+                    padding:0.6rem 0.75rem; margin-bottom:0.75rem; font-size:0.82rem;">
+            👤 <strong>{st.session_state.display_name}</strong><br>
+            <span style="color:#888; font-size:0.72rem;">{st.session_state.role} · {st.session_state.username}</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.caption(f"🕐 {len(st.session_state.history)} run(s) this session")
+        st.divider()
+
+    st.markdown("**📥 Sample Files**")
+    st.caption("Download to try the app:")
+    sample_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
     for fname, label in [
-        ("gstr2a.xlsx",           "📥 GSTR-2A Sample"),
-        ("purchase_register.xlsx","📥 Purchase Register"),
-        ("bank_statement.xlsx",   "📥 Bank Statement"),
-        ("gst_liability.xlsx",    "📥 GST Liability"),
+        ("gstr2a.xlsx",            "GSTR-2A Sample"),
+        ("purchase_register.xlsx", "Purchase Register"),
+        ("bank_statement.xlsx",    "Bank Statement"),
+        ("gst_liability.xlsx",     "GST Liability"),
     ]:
         fpath = os.path.join(sample_dir, fname)
         if os.path.exists(fpath):
             with open(fpath, "rb") as f:
-                st.download_button(label, data=f, file_name=fname,
+                st.download_button(f"⬇ {label}", data=f.read(), file_name=fname,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True, key=f"dl_{fname}")
+                    use_container_width=True, key=f"sb_{fname}")
 
     st.divider()
-    if st.button("🚪 Sign Out", use_container_width=True):
-        do_logout()
+    st.markdown("**ℹ️ About**")
+    st.caption("GST AutoFlow automates GST reconciliation for Indian businesses. No CA fees. No manual spreadsheets.")
+    st.markdown("[GitHub ↗](https://github.com/Sudheer-029/gst-autoflow)  ·  [Portfolio ↗](https://sudheer-029.github.io)")
 
 
 # ════════════════════════════════════════════════════════════════════════
-#  MAIN APP — Header
+#  AUTH HELPERS
 # ════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<div class="app-header">
-    <div>
-        <h1>📊 GST AutoFlow</h1>
-        <div class="tagline">Automated GST reconciliation — GSTR-2A · Invoice OCR · Payment Matching</div>
-    </div>
-    <div class="header-badge">India GST Suite</div>
-</div>
-""", unsafe_allow_html=True)
+def do_login(username, password):
+    u = username.strip().lower()
+    if u in USERS and USERS[u]["password"] == password:
+        st.session_state.authenticated = True
+        st.session_state.username      = u
+        st.session_state.display_name  = USERS[u]["name"]
+        st.session_state.role          = USERS[u]["role"]
+        return True
+    return False
 
+def do_logout():
+    for k in ["authenticated", "username", "display_name", "role", "history"]:
+        st.session_state[k] = False if k == "authenticated" else ([] if k == "history" else "")
+    st.rerun()
 
-# ── Helper ────────────────────────────────────────────────────────────────
+def add_history(module, summary_text):
+    st.session_state.history.insert(0, {
+        "time":    datetime.now().strftime("%d %b %Y, %I:%M %p"),
+        "module":  module,
+        "summary": summary_text,
+    })
+    if len(st.session_state.history) > 20:
+        st.session_state.history = st.session_state.history[:20]
+
 def save_upload(f, suffix, max_mb):
     if f.size / (1024 * 1024) > max_mb:
         raise ValidationError(f"'{f.name}' exceeds {max_mb} MB limit.")
@@ -403,22 +322,125 @@ def save_upload(f, suffix, max_mb):
     return tmp.name
 
 
-# ── Tabs ──────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs([
+# ════════════════════════════════════════════════════════════════════════
+#  LOGIN PAGE
+# ════════════════════════════════════════════════════════════════════════
+if not st.session_state.authenticated:
+    # Minimal topbar even on login
+    st.markdown("""
+    <div class="topbar">
+        <div class="topbar-brand"><span>📊</span> GST AutoFlow</div>
+        <div class="topbar-right">
+            <span class="role-badge">India GST Suite · v2.1</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    _, col, _ = st.columns([1, 1.1, 1])
+    with col:
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+        <div class="login-header">
+            <div style="font-size:3rem;">📊</div>
+            <h1>GST AutoFlow</h1>
+            <p>Know your GST health before your CA does.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <div class="demo-box">
+            <strong>🔑 Try the demo</strong><br>
+            Username: <code>demo</code> &nbsp;·&nbsp; Password: <code>Demo@2024</code>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.form("login_form"):
+            username = st.text_input("Username", placeholder="Enter your username")
+            password = st.text_input("Password", type="password", placeholder="Enter your password")
+            cols = st.columns([1, 1])
+            submitted = cols[0].form_submit_button("Sign In →", type="primary", use_container_width=True)
+            cols[1].form_submit_button("Try Demo", use_container_width=True)
+
+            if submitted:
+                if do_login(username, password):
+                    st.rerun()
+                else:
+                    st.error("Incorrect username or password.")
+
+        # Auto-fill demo on "Try Demo" click (workaround via session state flag)
+        st.markdown("""
+        <div style="text-align:center; margin-top:1.25rem; color:#bbb; font-size:0.75rem;">
+            GST AutoFlow v2.1 &nbsp;·&nbsp; 
+            Built by <a href="https://sudheer-029.github.io" target="_blank" style="color:#1a73e8;">Sudheer Bishnoi</a>
+        </div>
+        """, unsafe_allow_html=True)
+    st.stop()
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  AUTHENTICATED — PERSISTENT TOPBAR (always visible)
+# ════════════════════════════════════════════════════════════════════════
+st.markdown(f"""
+<div class="topbar">
+    <div class="topbar-brand"><span>📊</span> GST AutoFlow</div>
+    <div class="topbar-right">
+        <span class="role-badge">{st.session_state.role}</span>
+        <span class="user-badge">👤 {st.session_state.display_name}</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Sign out + history in a slim row just below topbar
+tb1, tb2, tb3, tb4 = st.columns([3, 1, 1, 1])
+with tb4:
+    if st.button("🚪 Sign Out", use_container_width=True):
+        do_logout()
+with tb3:
+    show_history = st.toggle("🕐 History", value=False)
+with tb2:
+    st.markdown(f"<span style='font-size:0.78rem; color:#888;'>Session: {len(st.session_state.history)} run(s)</span>", unsafe_allow_html=True)
+
+st.divider()
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  HISTORY PANEL (collapsible)
+# ════════════════════════════════════════════════════════════════════════
+if show_history:
+    with st.container(border=True):
+        st.markdown("#### 🕐 Reconciliation History (this session)")
+        if not st.session_state.history:
+            st.markdown('<div class="history-empty">No runs yet. Run a reconciliation to see history here.</div>', unsafe_allow_html=True)
+        else:
+            for i, h in enumerate(st.session_state.history):
+                c1, c2, c3 = st.columns([1.5, 3, 1])
+                c1.markdown(f"<span style='font-size:0.72rem;color:#999;'>{h['time']}</span>", unsafe_allow_html=True)
+                c2.markdown(f"**{h['module']}** — {h['summary']}")
+                c3.markdown(f"<span style='font-size:0.75rem;color:#1a73e8;'>Run #{len(st.session_state.history)-i}</span>", unsafe_allow_html=True)
+        if st.session_state.history:
+            if st.button("Clear History", type="secondary"):
+                st.session_state.history = []
+                st.rerun()
+    st.divider()
+
+
+# ════════════════════════════════════════════════════════════════════════
+#  MAIN TABS
+# ════════════════════════════════════════════════════════════════════════
+tab1, tab2, tab3, tab4 = st.tabs([
     "🔄  GSTR-2A Reconciliation",
     "🧾  Invoice OCR Parser",
     "💳  Payment Reconciliation",
+    "📥  Sample Files",
 ])
 
 
-# ════════════════════════════════════════════════════════════════════════
-#  TAB 1 — GSTR-2A Reconciliation
-# ════════════════════════════════════════════════════════════════════════
+# ── TAB 1 — GSTR-2A ───────────────────────────────────────────────────
 with tab1:
     st.markdown("""
     <div class="section-header">
         <h2>GSTR-2A vs Purchase Register</h2>
-        <p>Find ITC at risk, amount mismatches, and invoices not in your books — in seconds.</p>
+        <p>Find ITC at risk, amount mismatches, and invoices not filed by suppliers — in seconds.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -435,29 +457,26 @@ with tab1:
                     g2a_path = save_upload(g2a_file, ".xlsx", MAX_EXCEL_MB)
                     results  = reconcile(pr_path, g2a_path)
                     report   = generate_report(results)
-
                 s = results["summary"]
 
                 if s["missing_in_gstr2a"] > 0:
-                    st.error(f"🔴 **Action Required:** {s['missing_in_gstr2a']} supplier(s) haven't filed — **₹{s['itc_at_risk']:,.0f} ITC at risk.** Chase them before GSTR-3B deadline.")
+                    st.error(f"🔴 **Action Required:** {s['missing_in_gstr2a']} supplier(s) haven't filed — **₹{s['itc_at_risk']:,.0f} ITC at risk.**")
                 elif s["amount_mismatch"] > 0:
                     st.warning(f"⚠️ **Review Needed:** {s['amount_mismatch']} invoice(s) have amount differences.")
                 else:
                     st.success("✅ All clean — no ITC at risk, no mismatches.")
 
                 m1, m2, m3, m4, m5 = st.columns(5)
-                m1.metric("Total Invoices",    s["total_pr"])
-                m2.metric("✅ Matched Clean",  s["matched_clean"])
-                m3.metric("⚠️ Mismatch",       s["amount_mismatch"])
-                m4.metric("🔴 Missing",        s["missing_in_gstr2a"])
-                m5.metric("ITC at Risk (₹)",   f"₹{s['itc_at_risk']:,.0f}")
+                m1.metric("Total Invoices",   s["total_pr"])
+                m2.metric("✅ Matched",       s["matched_clean"])
+                m3.metric("⚠️ Mismatch",      s["amount_mismatch"])
+                m4.metric("🔴 Missing",       s["missing_in_gstr2a"])
+                m5.metric("ITC at Risk (₹)",  f"₹{s['itc_at_risk']:,.0f}")
 
                 st.divider()
                 ch1, ch2 = st.columns([1.2, 1])
-                with ch1:
-                    st.plotly_chart(itc_risk_by_vendor(results["missing_in_gstr2a"]), use_container_width=True)
-                with ch2:
-                    st.plotly_chart(reconciliation_summary_donut(s), use_container_width=True)
+                with ch1: st.plotly_chart(itc_risk_by_vendor(results["missing_in_gstr2a"]), use_container_width=True)
+                with ch2: st.plotly_chart(reconciliation_summary_donut(s), use_container_width=True)
                 st.plotly_chart(mismatch_detail_bar(results["amount_mismatch"]), use_container_width=True)
 
                 with open(report, "rb") as f:
@@ -471,24 +490,23 @@ with tab1:
                 with st.expander("Preview — Amount Mismatches"):
                     st.dataframe(results["amount_mismatch"], use_container_width=True)
 
-            except ValidationError as e:
-                st.error(f"⚠️ {e}")
-            except Exception:
-                st.error("Unexpected error — check your file format and try again.")
+                add_history("GSTR-2A Reconciliation",
+                    f"{s['total_pr']} invoices · {s['matched_clean']} matched · {s['missing_in_gstr2a']} missing · ₹{s['itc_at_risk']:,.0f} ITC at risk")
+
+            except ValidationError as e: st.error(f"⚠️ {e}")
+            except Exception: st.error("Unexpected error — check your file format.")
             finally:
                 for p in [pr_path, g2a_path]:
                     if p and os.path.exists(p): os.unlink(p)
     else:
         st.info("📂 Upload both files above to begin reconciliation.")
-        with st.expander("📋 Expected file formats"):
+        with st.expander("📋 Expected column names"):
             cc1, cc2 = st.columns(2)
-            cc1.markdown("**Purchase Register**\n\nColumns: `supplier_gstin` · `invoice_number` · `invoice_date` · `taxable_amount` · `igst` · `cgst` · `sgst`")
-            cc2.markdown("**GSTR-2A**\n\nColumns: `supplier_gstin` · `invoice_number` · `invoice_date` · `taxable_amount` · `igst` · `cgst` · `sgst`")
+            cc1.markdown("**Purchase Register**\n\n`supplier_gstin` · `invoice_number` · `invoice_date` · `taxable_amount` · `igst` · `cgst` · `sgst`")
+            cc2.markdown("**GSTR-2A**\n\n`supplier_gstin` · `invoice_number` · `invoice_date` · `taxable_amount` · `igst` · `cgst` · `sgst`")
 
 
-# ════════════════════════════════════════════════════════════════════════
-#  TAB 2 — Invoice OCR Parser
-# ════════════════════════════════════════════════════════════════════════
+# ── TAB 2 — Invoice OCR ───────────────────────────────────────────────
 with tab2:
     st.markdown("""
     <div class="section-header">
@@ -501,7 +519,6 @@ with tab2:
         f"📎 Upload PDF Invoices (multiple, ≤{MAX_PDF_MB} MB each)",
         type=["pdf"], accept_multiple_files=True, key="pdfs"
     )
-
     if uploaded_pdfs:
         if st.button("🧾 Extract Invoice Data", type="primary", use_container_width=True, key="btn_ocr"):
             tmp_dir = None
@@ -520,11 +537,10 @@ with tab2:
                 if "confidence" in df.columns:
                     low_conf = df[df["confidence"].isin(["low", "partial"])]
                     if not low_conf.empty:
-                        st.warning(f"⚠️ {len(low_conf)} invoice(s) need manual verification: {', '.join(low_conf['file'].tolist())}")
+                        st.warning(f"⚠️ {len(low_conf)} invoice(s) need manual check: {', '.join(low_conf['file'].tolist())}")
                     else:
                         st.success(f"✅ All {len(df)} invoices extracted with high confidence.")
 
-                if "confidence" in df.columns:
                     high = (df["confidence"] == "high").sum()
                     m1, m2, m3, m4 = st.columns(4)
                     m1.metric("📄 Processed",       len(df))
@@ -535,10 +551,8 @@ with tab2:
 
                 st.divider()
                 ch1, ch2 = st.columns([1, 1.6])
-                with ch1:
-                    st.plotly_chart(ocr_confidence_chart(df), use_container_width=True)
-                with ch2:
-                    st.dataframe(ocr_amount_table(df), use_container_width=True, height=280)
+                with ch1: st.plotly_chart(ocr_confidence_chart(df), use_container_width=True)
+                with ch2: st.dataframe(ocr_amount_table(df), use_container_width=True, height=280)
 
                 with open(report, "rb") as f:
                     st.download_button("📥 Download Extracted Data (.xlsx)", data=f,
@@ -546,21 +560,19 @@ with tab2:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True)
 
-            except ValidationError as e:
-                st.error(f"⚠️ {e}")
-            except Exception:
-                st.error("Unexpected error — check your PDF files.")
+                add_history("Invoice OCR Parser", f"{len(df)} invoice(s) parsed · ₹{total_taxable:,.0f} total taxable")
+
+            except ValidationError as e: st.error(f"⚠️ {e}")
+            except Exception: st.error("Unexpected error — check your PDF files.")
             finally:
                 if tmp_dir and os.path.exists(tmp_dir):
                     shutil.rmtree(tmp_dir, ignore_errors=True)
     else:
         st.info("📎 Upload one or more PDF invoices to begin extraction.")
-        st.caption("💡 Text-based PDFs work best. Scanned PDFs need OCR pre-processing.")
+        st.caption("💡 Text-based PDFs work best.")
 
 
-# ════════════════════════════════════════════════════════════════════════
-#  TAB 3 — Payment Reconciliation
-# ════════════════════════════════════════════════════════════════════════
+# ── TAB 3 — Payment Recon ─────────────────────────────────────────────
 with tab3:
     st.markdown("""
     <div class="section-header">
@@ -571,7 +583,7 @@ with tab3:
 
     c1, c2 = st.columns(2)
     bank_file = c1.file_uploader(f"🏦 Bank Statement (.xlsx ≤{MAX_EXCEL_MB}MB)", type=["xlsx"], key="bank")
-    liab_file = c2.file_uploader(f"📋 GST Liability / GSTR-3B (.xlsx ≤{MAX_EXCEL_MB}MB)", type=["xlsx"], key="liab")
+    liab_file = c2.file_uploader(f"📋 GST Liability (.xlsx ≤{MAX_EXCEL_MB}MB)", type=["xlsx"], key="liab")
 
     if bank_file and liab_file:
         if st.button("💳 Run Payment Reconciliation", type="primary", use_container_width=True, key="btn_pay"):
@@ -582,30 +594,27 @@ with tab3:
                     liab_path = save_upload(liab_file, ".xlsx", MAX_EXCEL_MB)
                     results   = reconcile_payments(bank_path, liab_path)
                     report    = generate_payment_report(results)
-
                 s = results["summary"]
 
                 if s["unpaid"] > 0:
-                    st.error(f"🔴 **Immediate Action:** {s['unpaid']} liability(s) unpaid — **₹{s['outstanding']:,.0f} outstanding.** Late filing attracts ₹50/day penalty.")
+                    st.error(f"🔴 **Immediate Action:** {s['unpaid']} liability(s) unpaid — **₹{s['outstanding']:,.0f} outstanding.** ₹50/day penalty applies.")
                 elif s["late_payments"] > 0:
-                    st.warning(f"⏰ {s['late_payments']} payment(s) after due date. Verify if 18% p.a. interest was paid.")
+                    st.warning(f"⏰ {s['late_payments']} payment(s) after due date. Verify 18% p.a. interest.")
                 else:
                     st.success("✅ All GST payments matched and on time.")
 
                 m1, m2, m3, m4, m5, m6 = st.columns(6)
-                m1.metric("Total Liabilities", s["total_liabilities"])
-                m2.metric("✅ Matched",         s["matched"])
-                m3.metric("🔴 Unpaid",          s["unpaid"])
-                m4.metric("⚠️ Underpaid",       s["underpaid"])
-                m5.metric("⏰ Late",            s["late_payments"])
-                m6.metric("Outstanding (₹)",    f"₹{s['outstanding']:,.0f}")
+                m1.metric("Total",          s["total_liabilities"])
+                m2.metric("✅ Matched",     s["matched"])
+                m3.metric("🔴 Unpaid",      s["unpaid"])
+                m4.metric("⚠️ Underpaid",   s["underpaid"])
+                m5.metric("⏰ Late",        s["late_payments"])
+                m6.metric("Outstanding ₹", f"₹{s['outstanding']:,.0f}")
 
                 st.divider()
                 ch1, ch2 = st.columns([1.8, 1])
-                with ch1:
-                    st.plotly_chart(payment_status_chart(results["reconciliation"]), use_container_width=True)
-                with ch2:
-                    st.plotly_chart(payment_status_donut(s), use_container_width=True)
+                with ch1: st.plotly_chart(payment_status_chart(results["reconciliation"]), use_container_width=True)
+                with ch2: st.plotly_chart(payment_status_donut(s), use_container_width=True)
                 st.dataframe(results["reconciliation"], use_container_width=True)
 
                 with open(report, "rb") as f:
@@ -614,27 +623,60 @@ with tab3:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True)
 
-            except ValidationError as e:
-                st.error(f"⚠️ {e}")
-            except Exception:
-                st.error("Unexpected error — check your file format.")
+                add_history("Payment Reconciliation",
+                    f"{s['total_liabilities']} liabilities · {s['matched']} matched · {s['unpaid']} unpaid · ₹{s['outstanding']:,.0f} outstanding")
+
+            except ValidationError as e: st.error(f"⚠️ {e}")
+            except Exception: st.error("Unexpected error — check your file format.")
             finally:
                 for p in [bank_path, liab_path]:
                     if p and os.path.exists(p): os.unlink(p)
     else:
-        st.info("📂 Upload bank statement and GST liability file to begin matching.")
+        st.info("📂 Upload bank statement and GST liability file to begin.")
         with st.expander("📋 Bank Statement format"):
-            st.markdown("Columns: `date` · `description` · `debit` · `credit`")
+            st.markdown("`date` · `description` · `debit` · `credit`")
         with st.expander("📋 GST Liability format"):
-            st.markdown("Columns: `period` · `tax_type` · `liability_amount` · `due_date`")
+            st.markdown("`period` · `tax_type` · `liability_amount` · `due_date`")
 
 
-# ── Footer ────────────────────────────────────────────────────────────────
+# ── TAB 4 — Sample Files ──────────────────────────────────────────────
+with tab4:
+    st.markdown("""
+    <div class="section-header">
+        <h2>Sample Files</h2>
+        <p>Download these to test all three modules immediately — no real data needed.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    sample_dir = os.path.join(os.path.dirname(__file__), "sample_data")
+    samples = [
+        ("gstr2a.xlsx",            "📊 GSTR-2A Sample",         "Use in Tab 1 alongside Purchase Register"),
+        ("purchase_register.xlsx", "📋 Purchase Register",      "Use in Tab 1 alongside GSTR-2A"),
+        ("bank_statement.xlsx",    "🏦 Bank Statement",         "Use in Tab 3 alongside GST Liability"),
+        ("gst_liability.xlsx",     "📄 GST Liability / GSTR-3B","Use in Tab 3 alongside Bank Statement"),
+    ]
+    cols = st.columns(2)
+    for i, (fname, label, desc) in enumerate(samples):
+        fpath = os.path.join(sample_dir, fname)
+        with cols[i % 2]:
+            with st.container(border=True):
+                st.markdown(f"**{label}**")
+                st.caption(desc)
+                if os.path.exists(fpath):
+                    with open(fpath, "rb") as f:
+                        st.download_button(f"⬇ Download {fname}", data=f, file_name=fname,
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True, key=f"dl_{fname}")
+
+    st.info("💡 For Invoice OCR: sample PDFs are in the `sample_data/invoices/` folder in the GitHub repo.")
+
+
+# ── Footer ─────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="app-footer">
-    GST AutoFlow v2.0 &nbsp;·&nbsp; Built by 
-    <a href="https://sudheer-029.github.io" target="_blank">Sudheer Bishnoi</a>
-    &nbsp;·&nbsp; Data is processed in-memory and never stored.
-    &nbsp;·&nbsp; <a href="https://github.com/Sudheer-029/gst-autoflow" target="_blank">GitHub</a>
+    GST AutoFlow v2.1 &nbsp;·&nbsp;
+    Built by <a href="https://sudheer-029.github.io" target="_blank">Sudheer Bishnoi</a>
+    &nbsp;·&nbsp; Data processed in-memory, never stored.
+    &nbsp;·&nbsp; <a href="https://github.com/Sudheer-029/gst-autoflow" target="_blank">GitHub ↗</a>
 </div>
 """, unsafe_allow_html=True)
