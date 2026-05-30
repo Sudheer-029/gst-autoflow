@@ -1337,51 +1337,6 @@ def render_help_module() -> None:
     st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
 
-    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
-
-    # ── Changelog ─────────────────────────────────────────────────────────────
-    st.markdown(
-        '<div class="ga-module-badge">Changelog</div>',
-        unsafe_allow_html=True,
-    )
-    changelog_entries = [
-        (
-            f"v3.0 — Current",
-            [
-                "Session persistence: results survive page refresh via URL-based session ID",
-                "Module 3: GST payment reconciliation against GSTR-3B liability",
-                "Telemetry: anonymous event tracking for usage analysis (no personal data)",
-                "Dashboard: Plotly charts for ITC risk by vendor, payment status, and confidence",
-                "Streamlit 1.x rewrite: tabs, containers, native st.metric with delta support",
-            ],
-        ),
-        (
-            "v2.0",
-            [
-                "Module 2: PDF invoice OCR parser with confidence scoring",
-                "Sample data: anonymised GSTR-2A, purchase register, bank statement, and PDF invoices",
-                "Column mapper: auto-detects 40+ column name variations across accounting software",
-                "Excel reports: multi-sheet output with colour-coded mismatch rows",
-            ],
-        ),
-        (
-            "v1.0",
-            [
-                "Module 1: GSTR-2A vs purchase register reconciliation",
-                "GSTR-2B mode added (static monthly statement for ITC claims under §16(2)(aa))",
-                "ValidationError handling with user-friendly messages",
-                "Streamlit UI with sidebar, section headers, and result cache",
-            ],
-        ),
-    ]
-    for version, items in changelog_entries:
-        with st.expander(version):
-            for item in items:
-                st.markdown(
-                    f'<div style="font-size:0.875rem; color:var(--ga-text); '
-                    f'line-height:1.8; padding:0.1rem 0;">&#x2022; {item}</div>',
-                    unsafe_allow_html=True,
-                )
     # ── Support ───────────────────────────────────────────────────────────────
     st.markdown(
         '<div class="ga-module-badge">Support & Bug Reports</div>',
