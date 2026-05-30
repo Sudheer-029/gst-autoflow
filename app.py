@@ -89,6 +89,12 @@ def _init_session() -> None:
         return
     sid = params["s"]
     st.session_state.session_id = sid
+    # ?home=1 — user clicked the logo; go back to landing page
+    if params.get("home") == "1":
+        st.session_state.started = False
+        _persist()
+        del st.query_params["home"]   # strip param so back-button works cleanly
+        return
     if st.session_state._session_restored:
         return                    # already restored this Python process run
     st.session_state._session_restored = True
@@ -116,10 +122,25 @@ except OSError:
 # ─────────────────────────────────────────────────────────────────────────────
 def render_topbar() -> None:
     """Persistent top navigation bar."""
+    sid = st.session_state.get("session_id", "")
+    # When in app mode, wrap brand in a link that triggers home navigation
+    if st.session_state.get("started") and sid:
+        brand_html = (
+            f'<a class="ga-brand ga-brand-link" href="?s={sid}&home=1" target="_self" title="Back to home">'
+            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
+            f'<span>{APP_NAME}</span>'
+            f'</a>'
+        )
+    else:
+        brand_html = (
+            f'<div class="ga-brand">'
+            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
+            f'<span>{APP_NAME}</span>'
+            f'</div>'
+        )
     st.markdown(
         f'<div class="ga-topbar">'
-        f'<div class="ga-brand"><span class="ga-monogram">GA</span>'
-        f'<span>{APP_NAME}</span><span class="ga-version">v{APP_VERSION}</span></div>'
+        f'{brand_html}'
         f'<div class="ga-topbar-right">'
         f'<a class="ga-topbar-link" href="https://github.com/Sudheer-029/gst-autoflow" target="_blank">GitHub</a>'
         f'</div>'
@@ -182,8 +203,35 @@ def render_error(exc: Exception) -> None:
         "danger",
         f"<b>Could not complete the operation.</b> {type(exc).__name__}: {exc}",
     )
-    with st.expander("Technical details"):
+    with st.expander("Error details (include when reporting a bug):"):
         st.code(traceback.format_exc(), language="text")
+
+
+def render_workflow_steps(active: int) -> None:
+    """Render a 3-step progress indicator. active: 1=Upload, 2=Run, 3=Download."""
+    steps = [("1", "Upload"), ("2", "Run"), ("3", "Download")]
+    parts = []
+    for i, (num, label) in enumerate(steps, start=1):
+        if i < active:
+            cls = "ga-wf-step ga-wf-done"
+            icon = f'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        elif i == active:
+            cls = "ga-wf-step ga-wf-active"
+            icon = num
+        else:
+            cls = "ga-wf-step ga-wf-idle"
+            icon = num
+        parts.append(
+            f'<div class="{cls}"><span class="ga-wf-num">{icon}</span>'
+            f'<span class="ga-wf-label">{label}</span></div>'
+        )
+        if i < len(steps):
+            parts.append('<div class="ga-wf-line"></div>')
+    st.markdown(
+        '<div class="ga-workflow">' + "".join(parts) + '</div>',
+        unsafe_allow_html=True,
+    )
+
 
 
 def fmt_inr(value: float) -> str:
@@ -198,7 +246,7 @@ def render_sidebar() -> None:
         st.markdown(
             f'<div style="padding: 0.25rem 0 1rem;">'
             f'<div style="display:flex; align-items:center; gap:10px;">'
-            f'<span class="ga-monogram">GA</span>'
+            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
             f'<div><div style="font-weight:600; color:var(--ga-ink); font-size:0.95rem;">{APP_NAME}</div>'
             f'<div style="font-size:0.72rem; color:var(--ga-muted);">v{APP_VERSION}</div></div>'
             f'</div></div>',
@@ -236,13 +284,6 @@ def render_sidebar() -> None:
         st.markdown(
             "- [Source on GitHub](https://github.com/Sudheer-029/gst-autoflow)\n"
             "- [Report an issue](https://github.com/Sudheer-029/gst-autoflow/issues)"
-        )
-        st.markdown(
-            '<div class="ga-disclaimer">'
-            'GST AutoFlow is a free utility, not certified accounting software. '
-            'Verify all results with a qualified CA before filing.'
-            '</div>',
-            unsafe_allow_html=True,
         )
 
 
@@ -282,7 +323,7 @@ def render_landing() -> None:
             track_event("landing_cta_click", st.session_state.session_id)
             st.rerun()
         st.caption(
-            "No account. No data stored. Free forever."
+            "No account required · No data stored · Open source (MIT) · Free forever"
         )
 
     # What it does — feature grid
@@ -309,7 +350,6 @@ def render_landing() -> None:
         '<line x1="1" y1="10" x2="23" y2="10"/>' +
         '</svg>'
     )
-    st.markdown('<div class="ga-features">', unsafe_allow_html=True)
     features = [
         (
             _ICON_RECON,
@@ -332,40 +372,36 @@ def render_landing() -> None:
             "unpaid, late, or short-paid entries before the department does.",
         ),
     ]
+    _features_html = '<div class="ga-features">'
     for icon, title, body in features:
-        st.markdown(
+        _features_html += (
             f'<div class="ga-feature-card">'
             f'<div class="ga-feature-icon">{icon}</div>'
             f'<div class="ga-feature-title">{title}</div>'
             f'<div class="ga-feature-body">{body}</div>'
-            f'</div>',
-            unsafe_allow_html=True,
+            f'</div>'
         )
-    st.markdown('</div>', unsafe_allow_html=True)
+    _features_html += '</div>'
+    st.markdown(_features_html, unsafe_allow_html=True)
 
     # How it works — three steps
-    st.markdown('<div class="ga-steps">', unsafe_allow_html=True)
-    st.markdown(
-        '<div class="ga-steps-title">How it works</div>',
-        unsafe_allow_html=True,
-    )
     steps = [
         ("1", "Upload", "Drop in your GSTR-2A, purchase register, bank statement, or PDF invoices."),
         ("2", "Reconcile", "We match, compare, and flag everything that needs your attention."),
         ("3", "Act", "Download a clean Excel report. Send it to your CA or fix it yourself."),
     ]
+    _steps_html = '<div class="ga-steps"><div class="ga-steps-title">How it works</div>'
     for num, title, body in steps:
-        st.markdown(
+        _steps_html += (
             f'<div class="ga-step">'
             f'<div class="ga-step-num">{num}</div>'
             f'<div class="ga-step-content">'
             f'<div class="ga-step-title">{title}</div>'
             f'<div class="ga-step-body">{body}</div>'
-            f'</div>'
-            f'</div>',
-            unsafe_allow_html=True,
+            f'</div></div>'
         )
-    st.markdown('</div>', unsafe_allow_html=True)
+    _steps_html += '</div>'
+    st.markdown(_steps_html, unsafe_allow_html=True)
 
     # Trust strip
     st.markdown(
@@ -410,10 +446,21 @@ def _show_mod1_results(cache: dict) -> None:
         banner("success", f"All invoices match {statement_label}. No ITC at risk.")
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Claimable ITC", fmt_inr(s.get("claimable_itc", 0)))
-    m2.metric("ITC at risk", fmt_inr(s["itc_at_risk"]))
-    m3.metric("Mismatches", s["amount_mismatch"])
-    m4.metric("Total invoices", s["total_pr"])
+    _total_itc = s.get("claimable_itc", 0) + s["itc_at_risk"]
+    _itc_risk_pct = (s["itc_at_risk"] / _total_itc * 100) if _total_itc else 0
+    _mismatch_pct = (s["amount_mismatch"] / s["total_pr"] * 100) if s["total_pr"] else 0
+    m1.metric("Claimable ITC", fmt_inr(s.get("claimable_itc", 0)),
+              help="ITC you can claim — invoices present in both your books and GSTR-2B with matching amounts.")
+    m2.metric("ITC at risk", fmt_inr(s["itc_at_risk"]),
+              delta=f"{_itc_risk_pct:.1f}% of total ITC" if _itc_risk_pct else None,
+              delta_color="inverse",
+              help="ITC from suppliers who haven't filed GSTR-1. Blocked under §16(2)(aa) until they file.")
+    m3.metric("Mismatches", s["amount_mismatch"],
+              delta=f"{_mismatch_pct:.1f}% of invoices" if _mismatch_pct else None,
+              delta_color="inverse",
+              help="Invoices present in both files but with differing taxable amounts or GST values.")
+    m4.metric("Total invoices", s["total_pr"],
+              help="Invoice count from your purchase register.")
 
     st.divider()
     ch1, ch2 = st.columns([1.2, 1])
@@ -426,7 +473,7 @@ def _show_mod1_results(cache: dict) -> None:
     dl_col, reset_col = st.columns([3, 1])
     with dl_col:
         st.download_button(
-            "⬇ Download full report (.xlsx)",
+            "Download full report (.xlsx)",
             data=cache["report_bytes"],
             file_name=cache["report_name"],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -495,6 +542,7 @@ def render_gstr2a_module() -> None:
     mode_short = "2B" if mode.startswith("GSTR-2B") else "2A"
     statement_label = f"GSTR-{mode_short}"
 
+    render_workflow_steps(1)
     c1, c2 = st.columns(2)
     pr_file = c1.file_uploader(
         f"Purchase register (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="pr",
@@ -585,10 +633,20 @@ def _show_mod2_results(cache: dict) -> None:
         banner("success", f"All {len(df)} invoice(s) extracted with high confidence.")
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Processed", len(df))
-    m2.metric("High confidence", int(high))
-    m3.metric("Needs review", int(len(df) - high))
-    m4.metric("Total taxable", fmt_inr(total_taxable))
+    _conf_pct = (int(high) / len(df) * 100) if len(df) else 0
+    _review_pct = ((len(df) - int(high)) / len(df) * 100) if len(df) else 0
+    m1.metric("Processed", len(df),
+              help="Total PDF invoices parsed in this run.")
+    m2.metric("High confidence", int(high),
+              delta=f"{_conf_pct:.0f}% extraction rate",
+              delta_color="normal",
+              help="Invoices where all key fields (GSTIN, amount, date) were extracted cleanly.")
+    m3.metric("Needs review", int(len(df) - high),
+              delta=f"{_review_pct:.0f}% of batch" if (len(df) - int(high)) else None,
+              delta_color="inverse",
+              help="Scanned or low-quality PDFs where fields may be missing or incorrect. Verify manually.")
+    m4.metric("Total taxable", fmt_inr(total_taxable),
+              help="Sum of taxable_amount across all extracted invoices.")
 
     st.divider()
     ch1, ch2 = st.columns([1, 1.6])
@@ -600,7 +658,7 @@ def _show_mod2_results(cache: dict) -> None:
     dl_col, reset_col = st.columns([3, 1])
     with dl_col:
         st.download_button(
-            "⬇ Download extracted data (.xlsx)",
+            "Download extracted data (.xlsx)",
             data=cache["report_bytes"],
             file_name=cache["report_name"],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -625,6 +683,7 @@ def render_ocr_module() -> None:
         _show_mod2_results(st.session_state["_mod2_cache"])
         return
 
+    render_workflow_steps(1)
     uploaded_pdfs = st.file_uploader(
         f"PDF invoices (multiple, max {MAX_PDF_MB} MB each)",
         type=["pdf"], accept_multiple_files=True, key="pdfs",
@@ -707,12 +766,22 @@ def _show_mod3_results(cache: dict) -> None:
         banner("success", "All GST payments matched and on time.")
 
     m1, m2, m3, m4, m5, m6 = st.columns(6)
-    m1.metric("Total", s["total_liabilities"])
-    m2.metric("Matched", s["matched"])
-    m3.metric("Unpaid", s["unpaid"])
-    m4.metric("Underpaid", s["underpaid"])
-    m5.metric("Late", s["late_payments"])
-    m6.metric("Outstanding", fmt_inr(s["outstanding"]))
+    _matched_pct = (s["matched"] / s["total_liabilities"] * 100) if s["total_liabilities"] else 0
+    m1.metric("Total", s["total_liabilities"],
+              help="GST liability entries from your GSTR-3B file.")
+    m2.metric("Matched", s["matched"],
+              delta=f"{_matched_pct:.0f}% match rate",
+              delta_color="normal",
+              help="Liabilities with a matching bank payment on or before the due date.")
+    m3.metric("Unpaid", s["unpaid"],
+              delta_color="inverse",
+              help="Liabilities with no matching bank payment. ₹50/day late fee applies.")
+    m4.metric("Underpaid", s["underpaid"],
+              help="Bank payment found but less than the liability amount.")
+    m5.metric("Late", s["late_payments"],
+              help="Paid after due date. 18% p.a. interest may apply.")
+    m6.metric("Outstanding", fmt_inr(s["outstanding"]),
+              help="Total unpaid + underpaid amount still owed.")
 
     st.divider()
     ch1, ch2 = st.columns([1.8, 1])
@@ -725,7 +794,7 @@ def _show_mod3_results(cache: dict) -> None:
     dl_col, reset_col = st.columns([3, 1])
     with dl_col:
         st.download_button(
-            "⬇ Download full report (.xlsx)",
+            "Download full report (.xlsx)",
             data=cache["report_bytes"],
             file_name=cache["report_name"],
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -751,6 +820,7 @@ def render_payment_module() -> None:
         _show_mod3_results(st.session_state["_mod3_cache"])
         return
 
+    render_workflow_steps(1)
     c1, c2 = st.columns(2)
     bank_file = c1.file_uploader(
         f"Bank statement (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="bank",
@@ -844,7 +914,7 @@ def render_samples_module() -> None:
                 if os.path.exists(fpath):
                     with open(fpath, "rb") as fh:
                         st.download_button(
-                            f"⬇ {fname}", data=fh, file_name=fname,
+                            f"Download {fname}", data=fh, file_name=fname,
                             mime=xlsx_mime, use_container_width=True, key=f"dl_{fname}",
                         )
 
@@ -872,7 +942,7 @@ def render_samples_module() -> None:
                     st.caption("Sample vendor invoice (.pdf)")
                     with open(fpath, "rb") as fh:
                         st.download_button(
-                            f"⬇ {fname}", data=fh, file_name=fname,
+                            f"Download {fname}", data=fh, file_name=fname,
                             mime="application/pdf",
                             use_container_width=True, key=f"dl_{fname}",
                         )
@@ -900,7 +970,7 @@ def render_samples_module() -> None:
                 if os.path.exists(fpath):
                     with open(fpath, "rb") as fh:
                         st.download_button(
-                            f"⬇ {fname}", data=fh, file_name=fname,
+                            f"Download {fname}", data=fh, file_name=fname,
                             mime=xlsx_mime, use_container_width=True, key=f"dl_{fname}",
                         )
 
@@ -1058,6 +1128,52 @@ def render_help_module() -> None:
 
     st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
 
+
+    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+
+    # ── Changelog ─────────────────────────────────────────────────────────────
+    st.markdown(
+        '<div class="ga-module-badge">Changelog</div>',
+        unsafe_allow_html=True,
+    )
+    changelog_entries = [
+        (
+            f"v3.0 — Current",
+            [
+                "Session persistence: results survive page refresh via URL-based session ID",
+                "Module 3: GST payment reconciliation against GSTR-3B liability",
+                "Telemetry: anonymous event tracking for usage analysis (no personal data)",
+                "Dashboard: Plotly charts for ITC risk by vendor, payment status, and confidence",
+                "Streamlit 1.x rewrite: tabs, containers, native st.metric with delta support",
+            ],
+        ),
+        (
+            "v2.0",
+            [
+                "Module 2: PDF invoice OCR parser with confidence scoring",
+                "Sample data: anonymised GSTR-2A, purchase register, bank statement, and PDF invoices",
+                "Column mapper: auto-detects 40+ column name variations across accounting software",
+                "Excel reports: multi-sheet output with colour-coded mismatch rows",
+            ],
+        ),
+        (
+            "v1.0",
+            [
+                "Module 1: GSTR-2A vs purchase register reconciliation",
+                "GSTR-2B mode added (static monthly statement for ITC claims under §16(2)(aa))",
+                "ValidationError handling with user-friendly messages",
+                "Streamlit UI with sidebar, section headers, and result cache",
+            ],
+        ),
+    ]
+    for version, items in changelog_entries:
+        with st.expander(version):
+            for item in items:
+                st.markdown(
+                    f'<div style="font-size:0.875rem; color:var(--ga-text); '
+                    f'line-height:1.8; padding:0.1rem 0;">&#x2022; {item}</div>',
+                    unsafe_allow_html=True,
+                )
     # ── Support ───────────────────────────────────────────────────────────────
     st.markdown(
         '<div class="ga-module-badge">Support & Bug Reports</div>',

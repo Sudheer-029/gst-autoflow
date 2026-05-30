@@ -572,3 +572,76 @@ hr[data-testid="stDivider"] {
     border-color: var(--ga-border) !important;
     margin: 1.5rem 0 !important;
 }
+
+/* ── Workflow step indicator ────────────────────────────────────────────── */
+.ga-workflow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 0 0 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--ga-bg-subtle);
+    border: 1px solid var(--ga-border);
+    border-radius: 8px;
+}
+.ga-wf-step {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.ga-wf-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+.ga-wf-active .ga-wf-num {
+    background: var(--ga-primary);
+    color: white;
+}
+.ga-wf-active .ga-wf-label {
+    color: var(--ga-ink);
+    font-weight: 600;
+}
+.ga-wf-done .ga-wf-num {
+    background: var(--ga-success-border);
+    color: white;
+}
+.ga-wf-done .ga-wf-label {
+    color: var(--ga-success-fg);
+}
+.ga-wf-idle .ga-wf-num {
+    background: var(--ga-border);
+    color: var(--ga-muted);
+}
+.ga-wf-idle .ga-wf-label {
+    color: var(--ga-muted);
+}
+.ga-wf-line {
+    flex: 1;
+    height: 1px;
+    background: var(--ga-border);
+    margin: 0 10px;
+    min-width: 24px;
+}
+
+/* Brand as clickable home link in app mode */
+a.ga-brand-link {
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+a.ga-brand-link:hover {
+    opacity: 0.75;
+}
+a.ga-brand-link span {
+    color: var(--ga-ink);
+}
