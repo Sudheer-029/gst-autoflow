@@ -56,6 +56,19 @@ def parse_invoice(pdf_path: str) -> dict:
 
     result = extract_fields(text, filename)
     result["extraction_method"] = "pdfplumber" if len(text.strip()) >= 50 else "ocr_fallback"
+
+    # Classify extraction quality for testers:
+    #   ok      → key fields present, confidence medium/high
+    #   partial → some fields missing or confidence low (needs manual review)
+    # Complete failures already return early with {"error": ...} above.
+    _required = ("vendor_gstin", "invoice_no", "total_amount")
+    _missing  = sum(1 for k in _required if not result.get(k))
+    _conf     = result.get("confidence", "low")
+    if _missing == 0 and _conf in ("medium", "high"):
+        result["extraction_status"] = "ok"
+    else:
+        result["extraction_status"] = "partial"
+
     return result
 
 

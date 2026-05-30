@@ -12,6 +12,7 @@ import os
 import shutil
 import tempfile
 import traceback
+import urllib.parse
 from datetime import datetime
 
 import streamlit as st
@@ -212,11 +213,29 @@ def render_error(exc: Exception) -> None:
         f"<b>Could not complete the operation.</b> {exc}",
     )
     with st.expander("Error details (include when reporting a bug):"):
-        st.code(traceback.format_exc(), language="text")
+        _tb = traceback.format_exc()
+        st.code(_tb, language="text")
+        _issue_url = (
+            "https://github.com/Sudheer-029/gst-autoflow/issues/new?"
+            + urllib.parse.urlencode({
+                "title": f"[Bug] {type(exc).__name__}: {str(exc)[:80]}",
+                "body": (
+                    f"**Error:** {exc}\n\n"
+                    f"**Traceback:**\n```\n{_tb[:600]}\n```\n\n"
+                    "**Steps to reproduce:**\n1. \n2. "
+                ),
+                "labels": "bug",
+            })
+        )
+        st.markdown(
+            f'<a href="{_issue_url}" target="_blank" rel="noopener">' +
+            "📎 Pre-fill a GitHub issue with this error</a>",
+            unsafe_allow_html=True,
+        )
 
 
-def render_workflow_steps(active: int) -> None:
-    """Render a 3-step progress indicator. active: 1=Upload, 2=Run, 3=Download."""
+def _wf_html(active: int) -> str:
+    """Return workflow step HTML string. active: 1=Upload, 2=Run, 3=Download."""
     steps = [("1", "Upload"), ("2", "Run"), ("3", "Download")]
     parts = []
     for i, (num, label) in enumerate(steps, start=1):
@@ -235,10 +254,12 @@ def render_workflow_steps(active: int) -> None:
         )
         if i < len(steps):
             parts.append('<div class="ga-wf-line"></div>')
-    st.markdown(
-        '<div class="ga-workflow">' + "".join(parts) + '</div>',
-        unsafe_allow_html=True,
-    )
+    return '<div class="ga-workflow">' + "".join(parts) + '</div>'
+
+
+def render_workflow_steps(active: int) -> None:
+    """Render a 3-step progress indicator. active: 1=Upload, 2=Run, 3=Download."""
+    st.markdown(_wf_html(active), unsafe_allow_html=True)
 
 
 
@@ -640,7 +661,8 @@ def render_gstr2a_module() -> None:
     mode_short = "2B" if mode.startswith("GSTR-2B") else "2A"
     statement_label = f"GSTR-{mode_short}"
 
-    render_workflow_steps(1)
+    _wf = st.empty()
+    _wf.markdown(_wf_html(1), unsafe_allow_html=True)
     _sample_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
     c1, c2 = st.columns(2)
     with c1:
@@ -709,6 +731,7 @@ def render_gstr2a_module() -> None:
     ):
         return
 
+    _wf.markdown(_wf_html(2), unsafe_allow_html=True)
     pr_path = g2a_path = None
     _m1_ok = False
     try:
@@ -821,7 +844,8 @@ def render_ocr_module() -> None:
         _show_mod2_results(st.session_state["_mod2_cache"])
         return
 
-    render_workflow_steps(1)
+    _wf = st.empty()
+    _wf.markdown(_wf_html(1), unsafe_allow_html=True)
     uploaded_pdfs = st.file_uploader(
         f"PDF invoices (multiple, max {MAX_PDF_MB} MB each)",
         type=["pdf"], accept_multiple_files=True, key="pdfs",
@@ -849,6 +873,7 @@ def render_ocr_module() -> None:
     if not st.button("Extract invoice data", type="primary", use_container_width=True, key="btn_ocr"):
         return
 
+    _wf.markdown(_wf_html(2), unsafe_allow_html=True)
     tmp_dir = None
     _m2_ok = False
     try:
@@ -977,7 +1002,8 @@ def render_payment_module() -> None:
         _show_mod3_results(st.session_state["_mod3_cache"])
         return
 
-    render_workflow_steps(1)
+    _wf = st.empty()
+    _wf.markdown(_wf_html(1), unsafe_allow_html=True)
     _sample_dir3 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
     c1, c2 = st.columns(2)
     with c1:
@@ -1027,6 +1053,7 @@ def render_payment_module() -> None:
     ):
         return
 
+    _wf.markdown(_wf_html(2), unsafe_allow_html=True)
     bank_path = liab_path = None
     _m3_ok = False
     try:

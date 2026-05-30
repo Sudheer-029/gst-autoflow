@@ -74,6 +74,21 @@ gst-autoflow/
 - **plotly** — interactive charts
 - **openpyxl** — Excel I/O
 
+## Running Tests
+
+```bash
+pip install pytest
+pytest tests/ -v
+```
+
+The test suite covers reconciler.py: tolerance matching, GSTIN normalisation, ITC-at-risk calculation, and claimable ITC boundary conditions.
+
+## Multi-tester Deployment Note
+
+Session data is stored in `~/.gst_autoflow/sessions/` on the host running Streamlit. If multiple internal testers access the same deployed server, each tester gets a unique session ID (stored in the URL as `?s=<id>`) — sessions do not cross-contaminate unless someone deliberately shares a URL.
+
+If you are running a shared testing instance, set the `GST_SESSION_DIR` environment variable (once added) or deploy separate instances per tester to avoid the shared filesystem.
+
 ## Contributing
 
 Issues and PRs welcome. If you run a small business in India and have a reconciliation pain point this app doesn't solve, open an issue with a description and (if possible) a sanitised sample file.
