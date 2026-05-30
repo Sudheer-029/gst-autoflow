@@ -393,6 +393,7 @@ def render_sidebar() -> None:
         st.markdown("**Resources**")
         st.markdown(
             "- [Source on GitHub](https://github.com/Sudheer-029/gst-autoflow)\n"
+            "- [Changelog](https://github.com/Sudheer-029/gst-autoflow/blob/master/CHANGELOG.md)\n"
             "- [Report an issue](https://github.com/Sudheer-029/gst-autoflow/issues)"
         )
 
@@ -1458,6 +1459,7 @@ def render_footer() -> None:
         f'<span>{APP_NAME} v{APP_VERSION} · Files processed in memory, never stored.</span>'
         f'<span>'
         f'<a href="https://github.com/Sudheer-029/gst-autoflow" target="_blank">Source</a> · '
+        f'<a href="https://github.com/Sudheer-029/gst-autoflow/blob/master/CHANGELOG.md" target="_blank">Changelog</a> · '
         f'<a href="https://github.com/Sudheer-029/gst-autoflow/issues" target="_blank">Report issue</a>'
         f'</span>'
         f'</div>',
