@@ -951,13 +951,19 @@ def _show_mod3_results(cache: dict) -> None:
               delta_color="normal",
               help="Liabilities with a matching bank payment on or before the due date.")
     _unpaid_pct = (s["unpaid"] / s["total_liabilities"] * 100) if s["total_liabilities"] else 0
+    _underpaid_pct = (s["underpaid"] / s["total_liabilities"] * 100) if s["total_liabilities"] else 0
+    _late_pct = (s["late_payments"] / s["total_liabilities"] * 100) if s["total_liabilities"] else 0
     m3.metric("Unpaid", s["unpaid"],
               delta=f"{_unpaid_pct:.0f}% of total" if _unpaid_pct else None,
               delta_color="inverse",
               help="Liabilities with no matching bank payment. ₹50/day late fee applies.")
     m4.metric("Underpaid", s["underpaid"],
+              delta=f"{_underpaid_pct:.0f}% of total" if _underpaid_pct else None,
+              delta_color="inverse",
               help="Bank payment found but less than the liability amount.")
     m5.metric("Late", s["late_payments"],
+              delta=f"{_late_pct:.0f}% of total" if _late_pct else None,
+              delta_color="inverse",
               help="Paid after due date. 18% p.a. interest may apply.")
     _outstanding_pct = (s["outstanding"] / s["total_liability_amt"] * 100) if s["total_liability_amt"] else 0
     m6.metric("Outstanding", fmt_inr(s["outstanding"]),
