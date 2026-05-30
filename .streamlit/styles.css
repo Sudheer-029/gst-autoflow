@@ -1,0 +1,574 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --ga-primary: #3949AB;
+    --ga-primary-dark: #283593;
+    --ga-ink: #0F172A;
+    --ga-text: #334155;
+    --ga-muted: #64748B;
+    --ga-border: #E2E8F0;
+    --ga-bg: #FFFFFF;
+    --ga-bg-subtle: #F8FAFC;
+    --ga-success-bg: #ECFDF5;
+    --ga-success-fg: #065F46;
+    --ga-success-border: #10B981;
+    --ga-warning-bg: #FFFBEB;
+    --ga-warning-fg: #92400E;
+    --ga-warning-border: #D97706;
+    --ga-danger-bg: #FEF2F2;
+    --ga-danger-fg: #991B1B;
+    --ga-danger-border: #DC2626;
+    --ga-info-bg: #EFF6FF;
+    --ga-info-fg: #1E3A8A;
+    --ga-info-border: #3B82F6;
+}
+
+html, body, [class*="css"] {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    color: var(--ga-text);
+}
+
+#MainMenu, footer { visibility: hidden; }
+header[data-testid="stHeader"] { display: none !important; }
+
+.block-container {
+    padding-top: 0 !important;
+    padding-bottom: 4rem !important;
+    padding-left: 3rem !important;
+    padding-right: 3rem !important;
+    max-width: 1280px !important;
+}
+
+/* Top bar */
+.ga-topbar {
+    background: var(--ga-bg);
+    border-bottom: 1px solid var(--ga-border);
+    padding: 0 1.5rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    box-shadow: 0 1px 0 var(--ga-border), 0 4px 16px rgba(15,23,42,0.04);
+    margin: -1rem -4rem 1.5rem -4rem;
+}
+.ga-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--ga-ink);
+    letter-spacing: -0.01em;
+}
+.ga-monogram {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, var(--ga-primary), var(--ga-primary-dark));
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.5px;
+}
+.ga-version {
+    color: var(--ga-muted);
+    font-weight: 400;
+    font-size: 0.78rem;
+    margin-left: 6px;
+}
+.ga-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.82rem;
+}
+.ga-user { color: var(--ga-text); font-weight: 500; }
+.ga-user .ga-role { color: var(--ga-muted); font-weight: 400; margin-left: 6px; font-size: 0.78rem; }
+
+/* Section headers */
+.ga-section {
+    margin-bottom: 1.75rem;
+    padding: 0 0 1rem;
+    border-bottom: 1px solid var(--ga-border);
+}
+.ga-section h2 {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: var(--ga-ink);
+    margin: 0 0 6px;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+}
+.ga-section p {
+    font-size: 0.875rem;
+    color: var(--ga-muted);
+    margin: 0;
+    line-height: 1.55;
+}
+
+/* Status banners */
+.ga-banner {
+    border-radius: 8px;
+    padding: 13px 16px;
+    margin: 0.75rem 0 1.25rem;
+    border-left: 4px solid transparent;
+    font-size: 0.875rem;
+    line-height: 1.55;
+}
+.ga-banner-danger  { background: var(--ga-danger-bg);  color: var(--ga-danger-fg);  border-left-color: var(--ga-danger-border);  }
+.ga-banner-warning { background: var(--ga-warning-bg); color: var(--ga-warning-fg); border-left-color: var(--ga-warning-border); }
+.ga-banner-success { background: var(--ga-success-bg); color: var(--ga-success-fg); border-left-color: var(--ga-success-border); }
+.ga-banner-info    { background: var(--ga-info-bg);    color: var(--ga-info-fg);    border-left-color: var(--ga-info-border);    }
+.ga-banner b { font-weight: 600; }
+
+/* Metric cards */
+div[data-testid="metric-container"] {
+    background: var(--ga-bg);
+    border: 1px solid var(--ga-border) !important;
+    border-left: 3px solid var(--ga-primary) !important;
+    border-radius: 8px;
+    padding: 0.85rem 1.1rem 0.85rem 0.9rem !important;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.05);
+}
+div[data-testid="metric-container"] label {
+    font-size: 0.72rem !important;
+    font-weight: 500 !important;
+    color: var(--ga-muted) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+div[data-testid="metric-container"] div[data-testid="stMetricValue"] {
+    font-size: 1.4rem !important;
+    font-weight: 600 !important;
+    color: var(--ga-ink) !important;
+    letter-spacing: -0.02em;
+}
+
+/* File uploader */
+div[data-testid="stFileUploader"] {
+    border: 2px dashed var(--ga-border) !important;
+    border-radius: 10px !important;
+    background: var(--ga-bg-subtle) !important;
+    padding: 1.5rem 1rem !important;
+    transition: all 0.2s ease !important;
+}
+div[data-testid="stFileUploader"]:hover {
+    border-color: var(--ga-primary) !important;
+    background: rgba(57,73,171,0.03) !important;
+    box-shadow: 0 0 0 3px rgba(57,73,171,0.08) !important;
+}
+
+/* Buttons */
+div[data-testid="stButton"] > button {
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    transition: all 0.15s ease;
+}
+div[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, #4a5ec9, var(--ga-primary-dark)) !important;
+    border: 1px solid var(--ga-primary-dark) !important;
+    box-shadow: 0 2px 8px rgba(57,73,171,0.3) !important;
+    letter-spacing: 0.01em;
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
+}
+div[data-testid="stButton"] > button[kind="primary"]:hover {
+    background: linear-gradient(135deg, var(--ga-primary), #1e2d85) !important;
+    border-color: #1e2d85 !important;
+    box-shadow: 0 4px 16px rgba(57,73,171,0.4) !important;
+    transform: translateY(-1px);
+}
+div[data-testid="stButton"] > button[kind="secondary"] {
+    border: 1px solid var(--ga-border) !important;
+    background: var(--ga-bg) !important;
+    color: var(--ga-text) !important;
+}
+
+/* Tabs */
+div[data-testid="stTabs"] button {
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: var(--ga-muted) !important;
+    padding: 14px 18px !important;
+    border-radius: 0 !important;
+    transition: color 0.15s ease;
+}
+div[data-testid="stTabs"] button:hover {
+    color: var(--ga-ink) !important;
+    background: var(--ga-bg-subtle) !important;
+}
+div[data-testid="stTabs"] button[aria-selected="true"] {
+    color: var(--ga-primary) !important;
+    font-weight: 600 !important;
+    border-bottom: 2px solid var(--ga-primary) !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: var(--ga-bg-subtle);
+    border-right: 1px solid var(--ga-border);
+}
+section[data-testid="stSidebar"] > div { padding-top: 1.25rem; }
+
+/* Login */
+.ga-login-spacer { height: 2rem; }
+.ga-login-header {
+    text-align: left;
+    padding: 1.25rem 0 0.5rem;
+}
+.ga-login-header .ga-monogram {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+    margin-bottom: 14px;
+}
+.ga-login-header h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--ga-ink);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+.ga-login-header p {
+    color: var(--ga-muted);
+    font-size: 0.88rem;
+    margin: 4px 0 0;
+}
+.ga-login-divider {
+    border: none;
+    border-top: 1px solid var(--ga-border);
+    margin: 1rem 0;
+}
+
+/* Footer */
+.ga-footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--ga-border);
+    color: var(--ga-muted);
+    font-size: 0.78rem;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.ga-footer a { color: var(--ga-primary); text-decoration: none; }
+.ga-footer a:hover { text-decoration: underline; }
+
+.ga-disclaimer {
+    background: var(--ga-bg-subtle);
+    border: 1px solid var(--ga-border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.75rem;
+    color: var(--ga-muted);
+    margin-top: 0.5rem;
+    line-height: 1.45;
+}
+
+
+/* ───────── Landing page ───────── */
+.ga-topbar-link {
+    color: var(--ga-text);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+.ga-topbar-link:hover {
+    background: var(--ga-bg-subtle);
+    color: var(--ga-primary);
+}
+
+.ga-hero {
+    padding: 3.25rem 0 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+.ga-hero-inner {
+    max-width: 720px;
+    margin: 0 auto;
+}
+.ga-eyebrow {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ga-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: rgba(57, 73, 171, 0.08);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+}
+.ga-hero-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--ga-ink);
+    margin: 0 0 1rem;
+    letter-spacing: -0.035em;
+    line-height: 1.08;
+}
+.ga-hero-sub {
+    font-size: 1rem;
+    color: var(--ga-muted);
+    line-height: 1.55;
+    margin: 0;
+}
+
+/* Feature grid */
+.ga-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 2rem 0 1.5rem;
+}
+.ga-feature-card {
+    background: var(--ga-bg);
+    border: 1px solid var(--ga-border);
+    border-radius: 10px;
+    padding: 1.1rem 1.15rem;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.ga-feature-card:hover {
+    border-color: var(--ga-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(57,73,171,0.1);
+}
+.ga-feature-title {
+    font-weight: 600;
+    color: var(--ga-ink);
+    font-size: 0.95rem;
+    margin-bottom: 0.45rem;
+}
+.ga-feature-body {
+    color: var(--ga-muted);
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+
+/* Steps */
+.ga-steps {
+    background: var(--ga-bg-subtle);
+    border: 1px solid var(--ga-border);
+    border-radius: 12px;
+    padding: 1.5rem 1.5rem;
+    margin-top: 1.5rem;
+}
+.ga-steps-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--ga-ink);
+    margin-bottom: 1rem;
+}
+.ga-step {
+    display: flex;
+    gap: 14px;
+    padding: 0.55rem 0;
+}
+.ga-step-num {
+    flex: 0 0 28px;
+    height: 28px;
+    width: 28px;
+    border-radius: 50%;
+    background: var(--ga-primary);
+    color: white;
+    font-weight: 600;
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.ga-step-title {
+    font-weight: 600;
+    color: var(--ga-ink);
+    font-size: 0.88rem;
+}
+.ga-step-body {
+    color: var(--ga-muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+/* Trust strip */
+.ga-trust {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+    margin-top: 1.5rem;
+}
+.ga-trust-item {
+    background: var(--ga-bg);
+    border: 1px solid var(--ga-border);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.78rem;
+    color: var(--ga-muted);
+    line-height: 1.5;
+}
+.ga-trust-item b {
+    color: var(--ga-ink);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* ── Hero gradient glow ── */
+.ga-hero::before {
+    content: '';
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 460px;
+    background: radial-gradient(ellipse, rgba(57,73,171,0.09) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+}
+.ga-hero-inner { position: relative; z-index: 1; }
+
+/* ── Feature card icons ── */
+.ga-feature-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: rgba(57,73,171,0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.8rem;
+    color: var(--ga-primary);
+}
+.ga-feature-icon svg { display: block; }
+
+/* ── Tip boxes ── */
+.ga-tip {
+    background: var(--ga-info-bg);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.83rem;
+    color: var(--ga-info-fg);
+    line-height: 1.5;
+    margin-top: 0.5rem;
+}
+.ga-tip-warn {
+    background: var(--ga-warning-bg);
+    border: 1px solid rgba(217,119,6,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.83rem;
+    color: var(--ga-warning-fg);
+    line-height: 1.5;
+    margin-top: 0.5rem;
+}
+.ga-tip b, .ga-tip-warn b { font-weight: 600; }
+
+/* ── Trust strip checkmark ── */
+.ga-trust-check {
+    color: var(--ga-success-border);
+    font-weight: 700;
+    margin-right: 5px;
+    font-size: 0.9rem;
+}
+
+/* ── Download button premium style ── */
+div[data-testid="stDownloadButton"] > button {
+    border-radius: 6px !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+    border: 1px solid var(--ga-border) !important;
+    color: var(--ga-text) !important;
+    background: var(--ga-bg) !important;
+    transition: all 0.15s ease;
+}
+div[data-testid="stDownloadButton"] > button:hover {
+    border-color: var(--ga-primary) !important;
+    color: var(--ga-primary) !important;
+    background: rgba(57,73,171,0.04) !important;
+}
+
+/* ── Tab list border ── */
+div[data-testid="stTabs"] [role="tablist"] {
+    border-bottom: 2px solid var(--ga-border);
+    gap: 0;
+    padding-bottom: 0;
+}
+
+/* ── Data frame ── */
+div[data-testid="stDataFrame"] > div {
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+/* ── Expander ── */
+div[data-testid="stExpander"] {
+    border-color: var(--ga-border) !important;
+    border-radius: 8px !important;
+}
+div[data-testid="stExpander"] summary {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: var(--ga-text) !important;
+}
+
+/* ── Bordered containers ── */
+div[data-testid="stVerticalBlockBorderWrapper"] > div {
+    border-radius: 10px !important;
+    border-color: var(--ga-border) !important;
+}
+
+/* ── Spinner text ── */
+div[data-testid="stSpinner"] p {
+    font-size: 0.85rem !important;
+    color: var(--ga-muted) !important;
+}
+
+/* ── Module page top spacing ── */
+div[data-testid="stTabs"] > div[data-baseweb="tab-panel"] {
+    padding-top: 2rem !important;
+}
+
+/* ── Section header module badge ── */
+.ga-module-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ga-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    background: rgba(57,73,171,0.08);
+    padding: 3px 9px;
+    border-radius: 99px;
+    margin-bottom: 0.65rem;
+}
+
+/* ── Stronger h1/h2 reset to prevent Streamlit overrides ── */
+div[data-testid="stMarkdownContainer"] h2 {
+    font-size: 1.45rem !important;
+    font-weight: 700 !important;
+    color: var(--ga-ink) !important;
+    letter-spacing: -0.025em !important;
+    margin: 0 0 6px !important;
+}
+
+/* ── Progress/spinner ── */
+div[data-testid="stStatusWidget"] { display: none; }
+
+/* ── Divider ── */
+hr[data-testid="stDivider"] {
+    border-color: var(--ga-border) !important;
+    margin: 1.5rem 0 !important;
+}

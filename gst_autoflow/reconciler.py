@@ -8,7 +8,13 @@ from .column_mapper import map_columns, MappingResult
 
 MATCH_KEY   = ["gstin", "invoice_no"]
 AMOUNT_COLS = ["taxable_amount", "igst", "cgst", "sgst", "total"]
-TOLERANCE   = 1.0
+
+# Paise tolerance for amount comparisons.
+# Indian purchase registers typically round to the nearest rupee, while the
+# GST portal calculates breakdowns to the paise. A ±₹10 micro-tolerance kills
+# false-positive "mismatch" warnings for routine rounding differences while
+# still surfacing real discrepancies.
+TOLERANCE = 10.0
 
 
 def _normalise_amounts(df: pd.DataFrame) -> pd.DataFrame:
@@ -32,11 +38,24 @@ def _pick(df: pd.DataFrame, col: str) -> pd.Series:
     return pd.Series(0.0, index=df.index)
 
 
-def reconcile(pr_path: str, gstr2a_path: str) -> dict:
+def reconcile(pr_path: str, gstr2a_path: str, *, mode: str = "2B") -> dict:
     """
-    Reconcile Purchase Register vs GSTR-2A.
-    Accepts any column naming convention — auto-mapped via column_mapper.
-    Returns results dict + mapping_warnings for UI display.
+    Reconcile Purchase Register vs GSTR-2B (or 2A).
+
+    Args:
+        pr_path:     Path to the Purchase Register Excel file.
+        gstr2a_path: Path to the GSTR-2B (preferred) or GSTR-2A Excel file.
+                     Despite the legacy parameter name, 2B is the recommended
+                     input under current CGST rules — ITC may only be claimed
+                     against the static GSTR-2B statement.
+        mode:        "2B" (default, recommended) or "2A". Affects only the
+                     summary labels; the matching logic is identical because
+                     2A and 2B share the same row schema.
+
+    Returns:
+        A dict with matched/mismatch/missing dataframes plus a summary block.
+        The summary's "source_statement" key reflects the chosen mode so the
+        UI can show accurate copy.
     """
     pr_path     = validate_excel(pr_path)
     gstr2a_path = validate_excel(gstr2a_path)
@@ -95,7 +114,15 @@ def reconcile(pr_path: str, gstr2a_path: str) -> dict:
     for df in [matched, amount_mismatch, only_pr, only_g2a]:
         df.drop(columns=["_merge"], errors="ignore", inplace=True)
 
+    # Total claimable ITC = sum of tax on cleanly matched invoices
+    # (these are the ones safe to claim against 2B/2A)
+    claimable_itc = 0.0
+    for col in ("igst_pr", "cgst_pr", "sgst_pr", "igst", "cgst", "sgst"):
+        if col in matched.columns:
+            claimable_itc += pd.to_numeric(matched[col], errors="coerce").fillna(0.0).sum()
+
     summary = {
+        "source_statement"  : f"GSTR-{mode}",
         "total_pr"          : len(pr),
         "total_gstr2a"      : len(g2a),
         "matched_clean"     : len(matched),
@@ -105,6 +132,7 @@ def reconcile(pr_path: str, gstr2a_path: str) -> dict:
         "pr_taxable_total"  : pr["taxable_amount"].sum(),
         "g2a_taxable_total" : g2a["taxable_amount"].sum(),
         "itc_at_risk"       : _pick(only_pr, "taxable_amount").sum() if len(only_pr) else 0.0,
+        "claimable_itc"     : float(claimable_itc),
     }
 
     return {

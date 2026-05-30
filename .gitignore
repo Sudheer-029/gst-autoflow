@@ -1,8 +1,21 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+
+# Local environments
+.venv/
+venv/
 .env
+.env.*
+
+# Generated reports
 output/
 *.xlsx
 !sample_data/*.xlsx
+
+# Editors / OS
 .DS_Store
+.vscode/
+.idea/
+*.swp
