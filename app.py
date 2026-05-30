@@ -1388,6 +1388,9 @@ def render_help_module() -> None:
         unsafe_allow_html=True,
     )
 
+    st.divider()
+    render_samples_module()
+
 def _render_recent_strip() -> None:
     """Horizontal 'Recent activity' strip showing up to 3 most recent runs."""
     hist = st.session_state.history

@@ -724,6 +724,10 @@ a.ga-brand-link span {
     .ga-topbar {
         margin: -1rem -1rem 1rem -1rem;
         padding: 0 1rem;
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 56px;
+        gap: 6px;
     }
     /* Feature cards: single column */
     .ga-features {
@@ -743,10 +747,42 @@ a.ga-brand-link span {
     .ga-steps { padding: 1rem !important; }
     /* Metrics: 2-column grid */
     div[data-testid="stMetric"] { min-width: 45% !important; }
-    div[data-testid="stColumns"] [data-testid="stColumn"] { min-width: 45% !important; }
     /* Topbar compact */
     .ga-version { display: none; }
     .ga-topbar-link { font-size: 0.75rem; }
+    /* Tab bar: horizontal scroll if tabs overflow */
+    div[data-testid="stTabs"] > div:first-child {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    div[data-testid="stTabs"] > div:first-child::-webkit-scrollbar { display: none; }
+    /* Workflow bar: wrap on narrow screens */
+    .ga-workflow { flex-wrap: wrap; gap: 8px 4px; }
+    .ga-wf-line { display: none; }
+    /* Banner: break long strings (GSTINs, filenames) */
+    .ga-banner { word-break: break-word; }
+    /* Section headers: reduce size */
+    .ga-section h2 { font-size: 1.2rem !important; }
+    /* Footer: stack */
+    .ga-footer { flex-direction: column; gap: 4px; }
+}
+
+/* ── Extra-narrow phones (≤ 390px) ─────────────────────────────────────── */
+@media (max-width: 390px) {
+    .ga-hero-title { font-size: 1.3rem !important; }
+    .ga-hero-sub   { font-size: 0.88rem !important; }
+    .ga-topbar-right { gap: 2px; }
+    .ga-topbar-link  { padding: 4px 6px; font-size: 0.7rem; }
+    /* Upload columns: full width on tiny phones */
+    div[data-testid="stColumns"] [data-testid="stColumn"] {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+    /* Except metric cards which stay 2-up */
+    div[data-testid="metric-container"] { min-width: 45% !important; }
+    /* Reduce section badge size */
+    .ga-module-badge { font-size: 0.65rem !important; }
 }
 
 /* ── #7 Beta badge ───────────────────────────────────────────────────────── */
