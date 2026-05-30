@@ -551,10 +551,10 @@ def _show_mod1_results(cache: dict) -> None:
     st.divider()
     ch1, ch2 = st.columns([1.2, 1])
     with ch1:
-        st.plotly_chart(itc_risk_by_vendor(results["missing_in_gstr2a"]), use_container_width=True)
+        st.plotly_chart(itc_risk_by_vendor(results["missing_in_gstr2a"]), use_container_width=True, config={"displayModeBar": False})
     with ch2:
-        st.plotly_chart(reconciliation_summary_donut(s), use_container_width=True)
-    st.plotly_chart(mismatch_detail_bar(results["amount_mismatch"]), use_container_width=True)
+        st.plotly_chart(reconciliation_summary_donut(s), use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(mismatch_detail_bar(results["amount_mismatch"]), use_container_width=True, config={"displayModeBar": False})
 
     dl_col, reset_col = st.columns([3, 1])
     with dl_col:
@@ -786,7 +786,7 @@ def _show_mod2_results(cache: dict) -> None:
     st.divider()
     ch1, ch2 = st.columns([1, 1.6])
     with ch1:
-        st.plotly_chart(ocr_confidence_chart(df), use_container_width=True)
+        st.plotly_chart(ocr_confidence_chart(df), use_container_width=True, config={"displayModeBar": False})
     with ch2:
         st.dataframe(ocr_amount_table(df), use_container_width=True, height=280)
 
@@ -940,9 +940,9 @@ def _show_mod3_results(cache: dict) -> None:
     st.divider()
     ch1, ch2 = st.columns([1.8, 1])
     with ch1:
-        st.plotly_chart(payment_status_chart(results["reconciliation"]), use_container_width=True)
+        st.plotly_chart(payment_status_chart(results["reconciliation"]), use_container_width=True, config={"displayModeBar": False})
     with ch2:
-        st.plotly_chart(payment_status_donut(s), use_container_width=True)
+        st.plotly_chart(payment_status_donut(s), use_container_width=True, config={"displayModeBar": False})
     st.dataframe(results["reconciliation"], use_container_width=True)
 
     dl_col, reset_col = st.columns([3, 1])
