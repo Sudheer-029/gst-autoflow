@@ -136,14 +136,14 @@ def render_topbar() -> None:
     if st.session_state.get("started") and sid:
         brand_html = (
             f'<a class="ga-brand ga-brand-link" href="?s={sid}&home=1" target="_self" title="Back to home">'
-            f'<span class="ga-monogram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>'
+            f'<span class="ga-monogram">₹</span>'
             f'<span>{APP_NAME}</span>'
             f'</a>'
         )
     else:
         brand_html = (
             f'<div class="ga-brand">'
-            f'<span class="ga-monogram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>'
+            f'<span class="ga-monogram">₹</span>'
             f'<span>{APP_NAME}</span>'
             f'</div>'
         )
@@ -375,7 +375,7 @@ def render_sidebar() -> None:
         st.markdown(
             f'<div style="padding: 0.25rem 0 1rem;">'
             f'<div style="display:flex; align-items:center; gap:10px;">'
-            f'<span class="ga-monogram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>'
+            f'<span class="ga-monogram">₹</span>'
             f'<div><div style="font-weight:600; color:var(--ga-ink); font-size:0.95rem;">{APP_NAME}</div>'
             f'<div style="font-size:0.72rem; color:var(--ga-muted);">v{APP_VERSION}</div></div>'
             f'</div></div>',
@@ -557,7 +557,10 @@ def _show_mod1_results(cache: dict) -> None:
     _total_itc = s.get("claimable_itc", 0) + s["itc_at_risk"]
     _itc_risk_pct = (s["itc_at_risk"] / _total_itc * 100) if _total_itc else 0
     _mismatch_pct = (s["amount_mismatch"] / s["total_pr"] * 100) if s["total_pr"] else 0
+    _claimable_pct = (s.get("claimable_itc", 0) / _total_itc * 100) if _total_itc else 0
     m1.metric("Claimable ITC", fmt_inr(s.get("claimable_itc", 0)),
+              delta=f"{_claimable_pct:.0f}% of total ITC" if _claimable_pct else None,
+              delta_color="normal",
               help="ITC you can claim — invoices present in both your books and GSTR-2B with matching amounts.")
     m2.metric("ITC at risk", fmt_inr(s["itc_at_risk"]),
               delta=f"{_itc_risk_pct:.1f}% of total ITC" if _itc_risk_pct else None,
@@ -738,6 +741,7 @@ def render_gstr2a_module() -> None:
             report_bytes, report_name = generate_report(results)
             _status.update(label="Done", state="complete")
         s = results["summary"]
+        report_name = f"GST_ITC_Recon_{mode_short}_{datetime.now().strftime('%Y%m%d')}.xlsx"
         st.session_state["_mod1_cache"] = {
             "results": results,
             "report_bytes": report_bytes,
@@ -889,6 +893,7 @@ def render_ocr_module() -> None:
         total_taxable = df["taxable_amount"].sum() if "taxable_amount" in df.columns else 0
         low_conf = df[df["confidence"].isin(["low", "partial"])] if "confidence" in df.columns else df.iloc[0:0]
 
+        report_name = f"Invoice_OCR_{datetime.now().strftime('%Y%m%d')}.xlsx"
         st.session_state["_mod2_cache"] = {
             "df": df,
             "high": high,
@@ -945,14 +950,19 @@ def _show_mod3_results(cache: dict) -> None:
               delta=f"{_matched_pct:.0f}% match rate",
               delta_color="normal",
               help="Liabilities with a matching bank payment on or before the due date.")
+    _unpaid_pct = (s["unpaid"] / s["total_liabilities"] * 100) if s["total_liabilities"] else 0
     m3.metric("Unpaid", s["unpaid"],
+              delta=f"{_unpaid_pct:.0f}% of total" if _unpaid_pct else None,
               delta_color="inverse",
               help="Liabilities with no matching bank payment. ₹50/day late fee applies.")
     m4.metric("Underpaid", s["underpaid"],
               help="Bank payment found but less than the liability amount.")
     m5.metric("Late", s["late_payments"],
               help="Paid after due date. 18% p.a. interest may apply.")
+    _outstanding_pct = (s["outstanding"] / s["total_liability_amt"] * 100) if s["total_liability_amt"] else 0
     m6.metric("Outstanding", fmt_inr(s["outstanding"]),
+              delta=f"{_outstanding_pct:.0f}% of liability" if _outstanding_pct else None,
+              delta_color="inverse",
               help="Total unpaid + underpaid amount still owed.")
 
     st.divider()
@@ -1060,6 +1070,7 @@ def render_payment_module() -> None:
             report_bytes, report_name = generate_payment_report(results)
             _status.update(label="Done", state="complete")
         s = results["summary"]
+        report_name = f"Payment_Recon_{datetime.now().strftime('%Y%m%d')}.xlsx"
         st.session_state["_mod3_cache"] = {
             "results": results,
             "report_bytes": report_bytes,

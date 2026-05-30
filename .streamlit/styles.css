@@ -74,6 +74,11 @@ header[data-testid="stHeader"] { display: none !important; }
     justify-content: center;
     flex-shrink: 0;
     box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    letter-spacing: 0;
+    user-select: none;
 }
 .ga-version {
     color: var(--ga-muted);
