@@ -136,14 +136,14 @@ def render_topbar() -> None:
     if st.session_state.get("started") and sid:
         brand_html = (
             f'<a class="ga-brand ga-brand-link" href="?s={sid}&home=1" target="_self" title="Back to home">'
-            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
+            f'<span class="ga-monogram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>'
             f'<span>{APP_NAME}</span>'
             f'</a>'
         )
     else:
         brand_html = (
             f'<div class="ga-brand">'
-            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
+            f'<span class="ga-monogram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>'
             f'<span>{APP_NAME}</span>'
             f'</div>'
         )
@@ -210,9 +210,10 @@ def render_error(exc: Exception) -> None:
         return
     banner(
         "danger",
-        f"<b>Could not complete the operation.</b> {exc}",
+        "<b>Something went wrong.</b> The issue has been noted. "
+        "Use the link below to file a report if it keeps happening.",
     )
-    with st.expander("Error details (include when reporting a bug):"):
+    with st.expander("Technical details (for bug reports only):", expanded=False):
         _tb = traceback.format_exc()
         st.code(_tb, language="text")
         _issue_url = (
@@ -374,7 +375,7 @@ def render_sidebar() -> None:
         st.markdown(
             f'<div style="padding: 0.25rem 0 1rem;">'
             f'<div style="display:flex; align-items:center; gap:10px;">'
-            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
+            f'<span class="ga-monogram"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>'
             f'<div><div style="font-weight:600; color:var(--ga-ink); font-size:0.95rem;">{APP_NAME}</div>'
             f'<div style="font-size:0.72rem; color:var(--ga-muted);">v{APP_VERSION}</div></div>'
             f'</div></div>',

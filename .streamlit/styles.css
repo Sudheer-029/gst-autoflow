@@ -64,17 +64,16 @@ header[data-testid="stHeader"] { display: none !important; }
     letter-spacing: -0.01em;
 }
 .ga-monogram {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
     background: linear-gradient(135deg, var(--ga-primary), var(--ga-primary-dark));
     color: white;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 0.78rem;
-    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
 }
 .ga-version {
     color: var(--ga-muted);
