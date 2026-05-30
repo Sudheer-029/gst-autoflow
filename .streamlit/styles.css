@@ -645,3 +645,165 @@ a.ga-brand-link:hover {
 a.ga-brand-link span {
     color: var(--ga-ink);
 }
+
+/* ── Empty states (#8) ──────────────────────────────────────────────────── */
+.ga-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    background: var(--ga-bg-subtle);
+    border: 1.5px dashed var(--ga-border);
+    border-radius: 10px;
+    margin: 0.5rem 0 1.25rem;
+}
+.ga-empty-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ga-ink);
+    margin: 0.875rem 0 0.375rem;
+}
+.ga-empty-body {
+    font-size: 0.85rem;
+    color: var(--ga-muted);
+    line-height: 1.6;
+    max-width: 480px;
+}
+
+/* ── Column preview (#5) ────────────────────────────────────────────────── */
+.ga-col-preview {
+    font-size: 0.78rem;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    border: 1px solid;
+}
+.ga-col-preview-ok  { background: var(--ga-success-bg); border-color: var(--ga-success-border); color: var(--ga-success-fg); }
+.ga-col-preview-warn { background: var(--ga-warning-bg); border-color: var(--ga-warning-border); color: var(--ga-warning-fg); }
+.ga-col-preview-msg { font-weight: 600; margin-bottom: 0.25rem; }
+.ga-col-preview-cols { display: flex; flex-wrap: wrap; gap: 0.35rem 0.75rem; }
+.ga-col-ok  { color: var(--ga-success-fg); }
+.ga-col-miss { color: var(--ga-danger-fg); font-weight: 600; }
+
+/* ── Next steps card (#20) ──────────────────────────────────────────────── */
+.ga-next-steps {
+    background: var(--ga-info-bg);
+    border: 1px solid var(--ga-info-border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0 0.5rem;
+}
+.ga-next-steps-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--ga-info-fg);
+    margin-bottom: 0.625rem;
+    letter-spacing: 0.01em;
+}
+.ga-next-steps-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: var(--ga-text);
+    font-size: 0.85rem;
+    line-height: 1.7;
+}
+.ga-next-steps-list li { margin-bottom: 0.25rem; }
+
+/* ── Mobile responsive (#19) ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .block-container {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .ga-topbar {
+        margin: -1rem -1rem 1rem -1rem;
+        padding: 0 1rem;
+    }
+    /* Feature cards: single column */
+    .ga-features {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+    }
+    .ga-feature-card { width: 100%; }
+    /* Trust strip: single column */
+    .ga-trust {
+        grid-template-columns: 1fr !important;
+        flex-direction: column !important;
+    }
+    /* Hero title smaller */
+    .ga-hero-title { font-size: 1.5rem !important; }
+    .ga-eyebrow    { font-size: 0.72rem !important; }
+    /* Steps: stack */
+    .ga-steps { padding: 1rem !important; }
+    /* Metrics: 2-column grid */
+    div[data-testid="stMetric"] { min-width: 45% !important; }
+    div[data-testid="stColumns"] [data-testid="stColumn"] { min-width: 45% !important; }
+    /* Topbar compact */
+    .ga-version { display: none; }
+    .ga-topbar-link { font-size: 0.75rem; }
+}
+
+/* ── #7 Beta badge ───────────────────────────────────────────────────────── */
+.ga-beta-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--ga-primary);
+    color: #fff;
+    border-radius: 4px;
+    padding: 2px 7px;
+    margin-right: 8px;
+    vertical-align: middle;
+    line-height: 1.6;
+}
+
+/* ── #7 Social proof strip ───────────────────────────────────────────────── */
+.ga-social-proof {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 1rem;
+    justify-content: center;
+}
+.ga-sp-item {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.72);
+    font-weight: 500;
+}
+.ga-sp-sep {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.35);
+}
+
+/* ── #9 Recent activity strip ────────────────────────────────────────────── */
+.ga-recent-card {
+    background: var(--ga-bg-subtle);
+    border: 1px solid var(--ga-border);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    min-height: 72px;
+}
+.ga-recent-module {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ga-primary);
+    margin-bottom: 4px;
+}
+.ga-recent-summary {
+    font-size: 0.82rem;
+    color: var(--ga-ink);
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+.ga-recent-time {
+    font-size: 0.7rem;
+    color: var(--ga-muted);
+}

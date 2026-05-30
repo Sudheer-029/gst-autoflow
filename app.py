@@ -134,7 +134,7 @@ def render_topbar() -> None:
     if st.session_state.get("started") and sid:
         brand_html = (
             f'<a class="ga-brand ga-brand-link" href="?s={sid}&home=1" target="_self" title="Back to home">'
-            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
+            f'<span class="ga-monogram"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>'
             f'<span>{APP_NAME}</span>'
             f'</a>'
         )
@@ -149,7 +149,7 @@ def render_topbar() -> None:
         f'<div class="ga-topbar">'
         f'{brand_html}'
         f'<div class="ga-topbar-right">'
-        f'<a class="ga-topbar-link" href="https://github.com/Sudheer-029/gst-autoflow" target="_blank">GitHub</a>'
+        f'<a class="ga-topbar-link" href="https://github.com/Sudheer-029/gst-autoflow" target="_blank" rel="noopener" aria-label="View GST AutoFlow source on GitHub">GitHub</a>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -244,6 +244,97 @@ def render_workflow_steps(active: int) -> None:
 def fmt_inr(value: float) -> str:
     return f"₹{value:,.0f}"
 
+def render_next_steps(module: str, stats: dict) -> None:
+    """Show contextual next-steps guidance after a successful reconciliation."""
+    if module == "gstr2b":
+        missing = stats.get("missing_in_gstr2a", 0)
+        mismatch = stats.get("amount_mismatch", 0)
+        itc_risk = stats.get("itc_at_risk", 0)
+        steps = [
+            f"<b>Claim only matched ITC.</b> {fmt_inr(stats.get('claimable_itc', 0))} is ready to claim in your GSTR-3B. Do not claim the {fmt_inr(itc_risk)} marked as at-risk.",
+            f"<b>Follow up with {missing} supplier(s)</b> who haven't filed GSTR-1. Send them an email referencing the invoice numbers in your report — their filing unlocks your ITC.",
+            "<b>Share the report with your CA</b> before filing. The Excel has colour-coded tabs: green = claimable, red = at risk, yellow = verify with supplier.",
+        ] if missing > 0 or mismatch > 0 else [
+            "<b>All ITC is claimable.</b> No action needed for missing suppliers — everyone has filed.",
+            "<b>Proceed to GSTR-3B filing.</b> Your input tax credit is fully matched and verified.",
+            "<b>Archive this report</b> with your GST records — you may need it during assessments.",
+        ]
+    elif module == "payment":
+        unpaid = stats.get("unpaid", 0)
+        late = stats.get("late_payments", 0)
+        outstanding = stats.get("outstanding", 0)
+        steps = [
+            f"<b>Pay {fmt_inr(outstanding)} outstanding immediately</b> to stop the ₹50/day late fee per liability." if unpaid > 0 else "<b>All liabilities paid.</b> No immediate action required.",
+            f"<b>Calculate interest on {late} late payment(s)</b> at 18% p.a. from due date. Include this in your GSTR-3B or consult your CA." if late > 0 else "<b>All payments were on time.</b> No interest liability.",
+            "<b>Reconcile monthly</b> before the 20th. Late GST payment interest accrues daily and is not waivable.",
+        ]
+    elif module == "ocr":
+        low_conf = stats.get("low_conf_count", 0)
+        steps = [
+            f"<b>Manually verify {low_conf} low-confidence invoice(s)</b> flagged in yellow in your report before using extracted data." if low_conf > 0 else "<b>All invoices extracted with high confidence.</b> Spot-check 2–3 against originals.",
+            "<b>Cross-reference totals with your purchase register</b> — the OCR report includes taxable_amount and GST breakdown per invoice.",
+            "<b>Contact suppliers for scanned/image PDFs.</b> Request digital (text-searchable) PDFs for future invoices to avoid low-confidence extractions.",
+        ]
+    else:
+        return
+
+    items_html = "".join(f'<li>{s}</li>' for s in steps)
+    st.markdown(
+        f'<div class="ga-next-steps">'
+        f'<div class="ga-next-steps-title">What to do next</div>'
+        f'<ol class="ga-next-steps-list">{items_html}</ol>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+
+
+
+
+def _show_column_preview(uploaded_file, label: str) -> None:
+    """Show column detection preview immediately after file upload."""
+    if uploaded_file is None:
+        return
+    try:
+        import io as _io
+        import pandas as _pd
+        from gst_autoflow.column_mapper import map_columns as _map_cols, REQUIRED_COLS
+        from gst_autoflow.validators import validate_gstin as _vgstin
+        df_peek = _pd.read_excel(_io.BytesIO(uploaded_file.getvalue()), nrows=5)
+        result = _map_cols(df_peek)
+        # Check for malformed GSTINs in the sample rows
+        _gstin_col = result.col_map.get("gstin") or next(
+            (c for c in df_peek.columns if "gstin" in c.lower()), None
+        )
+        _bad_gstins = 0
+        if _gstin_col and _gstin_col in df_peek.columns:
+            _bad_gstins = df_peek[_gstin_col].dropna().apply(
+                lambda g: not _vgstin(str(g))
+            ).sum()
+        df_peek = df_peek.iloc[0:0]  # reset to headers only for mapping display
+        mapped = [(src, tgt) for src, tgt in result.col_map.items()]
+        missing = result.missing_required
+
+        rows = ""
+        for src, tgt in mapped:
+            if tgt in REQUIRED_COLS:
+                rows += f'<span class="ga-col-ok">&#10003; <b>{src}</b></span>'
+        for m in missing:
+            rows += f'<span class="ga-col-miss">&#10007; {m} not found</span>'
+
+        status_cls = "ga-col-preview-warn" if (missing or _bad_gstins > 0) else "ga-col-preview-ok"
+        _gstin_note = f" · {_bad_gstins} malformed GSTIN(s)" if _bad_gstins else ""
+        msg = f"Column check: {len(mapped)} mapped" + (f", {len(missing)} missing" if missing else " — ready") + _gstin_note
+        st.markdown(
+            f'<div class="ga-col-preview {status_cls}">'
+            f'<div class="ga-col-preview-msg">{msg}</div>'
+            f'<div class="ga-col-preview-cols">{rows}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    except Exception:
+        pass  # silent — never block the upload flow
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar
@@ -304,13 +395,22 @@ def render_landing() -> None:
     st.markdown(
         f'<div class="ga-hero">'
         f'<div class="ga-hero-inner">'
-        f'<div class="ga-eyebrow">Open source · Free forever · Made in India</div>'
+        f'<div class="ga-eyebrow"><span class="ga-beta-badge">Beta</span> Open source · Free forever · Made in India</div>'
         f'<h1 class="ga-hero-title">{APP_TAGLINE}</h1>'
         f'<p class="ga-hero-sub">'
         f'Match purchase register against GSTR-2A/2B, extract invoice data via OCR, '
         f'and reconcile GST payments — in minutes. No signup. No CA fees. '
         f'Your files never leave your session.'
         f'</p>'
+        f'<div class="ga-social-proof">'
+        f'<span class="ga-sp-item">3 modules</span>'
+        f'<span class="ga-sp-sep">·</span>'
+        f'<span class="ga-sp-item">100% client-side</span>'
+        f'<span class="ga-sp-sep">·</span>'
+        f'<span class="ga-sp-item">CGST §16(2)(aa) aligned</span>'
+        f'<span class="ga-sp-sep">·</span>'
+        f'<span class="ga-sp-item">MIT licensed</span>'
+        f'</div>'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -486,6 +586,8 @@ def _show_mod1_results(cache: dict) -> None:
             _persist()
             st.rerun()
 
+    render_next_steps("gstr2b", s)
+
     with st.expander(f"Preview: missing in {statement_label}"):
         st.dataframe(results["missing_in_gstr2a"], use_container_width=True)
     with st.expander("Preview: amount mismatches"):
@@ -566,8 +668,29 @@ def render_gstr2a_module() -> None:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key="tmpl_g2a", help="Sample GSTR-2A/2B with the required column format")
 
+    if pr_file or g2a_file:
+        pc1, pc2 = st.columns(2)
+        with pc1:
+            _show_column_preview(pr_file, "Purchase register")
+        with pc2:
+            _show_column_preview(g2a_file, statement_label)
+
     if not (pr_file and g2a_file):
-        banner("info", f"Upload both the purchase register and {statement_label} files to begin.")
+        _SHEET_ICON = ('<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--ga-primary)" '
+                       'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                       '<rect x="2" y="3" width="20" height="18" rx="2"/>'
+                       '<line x1="8" y1="3" x2="8" y2="21"/>'
+                       '<line x1="2" y1="9" x2="22" y2="9"/>'
+                       '<line x1="2" y1="15" x2="22" y2="15"/>'
+                       '</svg>')
+        st.markdown(
+            f'<div class="ga-empty-state">{_SHEET_ICON}'
+            f'<div class="ga-empty-title">Upload your files to begin</div>'
+            f'<div class="ga-empty-body">Drop in your <b>purchase register</b> and <b>{statement_label}</b> above. '
+            f'Column names are detected automatically — Tally, Zoho, ERPNext, and manual formats all work.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
         with st.expander("Expected columns"):
             cc1, cc2 = st.columns(2)
             cc1.markdown(
@@ -591,6 +714,7 @@ def render_gstr2a_module() -> None:
         return
 
     pr_path = g2a_path = None
+    _m1_ok = False
     try:
         with st.status("Running reconciliation…", expanded=False) as _status:
             _status.update(label="Reading files…")
@@ -621,7 +745,7 @@ def render_gstr2a_module() -> None:
             "missing_count": int(s["missing_in_gstr2a"]),
             "mismatch_count": int(s["amount_mismatch"]),
         })
-        st.rerun()
+        _m1_ok = True
     except Exception as exc:
         render_error(exc)
         track_event("module_error", st.session_state.session_id, {
@@ -630,6 +754,8 @@ def render_gstr2a_module() -> None:
         })
     finally:
         cleanup_paths(pr_path, g2a_path)
+    if _m1_ok:
+        st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -684,6 +810,8 @@ def _show_mod2_results(cache: dict) -> None:
             _persist()
             st.rerun()
 
+    render_next_steps("ocr", {"low_conf_count": cache.get("low_conf_count", 0)})
+
 
 def render_ocr_module() -> None:
     section_header(
@@ -703,14 +831,29 @@ def render_ocr_module() -> None:
     )
 
     if not uploaded_pdfs:
-        banner("info", "Upload one or more PDF invoices to extract structured data.")
-        st.caption("Text-based PDFs work best. Scanned image PDFs may yield partial results.")
+        _PDF_ICON = ('<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--ga-primary)" '
+                     'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                     '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>'
+                     '<polyline points="14 2 14 8 20 8"/>'
+                     '<line x1="16" y1="13" x2="8" y2="13"/>'
+                     '<line x1="16" y1="17" x2="8" y2="17"/>'
+                     '</svg>')
+        st.markdown(
+            f'<div class="ga-empty-state">{_PDF_ICON}'
+            f'<div class="ga-empty-title">Drop in your vendor invoices</div>'
+            f'<div class="ga-empty-body">Upload one or more PDF invoices above. '
+            f'GSTIN, invoice number, date, and tax amounts are extracted automatically. '
+            f'Text-searchable PDFs give best results — scanned images may yield partial data.</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
         return
 
     if not st.button("Extract invoice data", type="primary", use_container_width=True, key="btn_ocr"):
         return
 
     tmp_dir = None
+    _m2_ok = False
     try:
         with st.status(f"Processing {len(uploaded_pdfs)} invoice(s)…", expanded=False) as _status:
             _status.update(label="Saving uploads…")
@@ -747,7 +890,7 @@ def render_ocr_module() -> None:
             "invoice_count": int(len(df)),
             "high_confidence": int(high),
         })
-        st.rerun()
+        _m2_ok = True
     except Exception as exc:
         render_error(exc)
         track_event("module_error", st.session_state.session_id, {
@@ -757,6 +900,8 @@ def render_ocr_module() -> None:
     finally:
         if tmp_dir and os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir, ignore_errors=True)
+    if _m2_ok:
+        st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -819,6 +964,8 @@ def _show_mod3_results(cache: dict) -> None:
             _persist()
             st.rerun()
 
+    render_next_steps("payment", s)
+
 
 def render_payment_module() -> None:
     section_header(
@@ -857,7 +1004,19 @@ def render_payment_module() -> None:
                     key="tmpl_liab", help="Sample GST liability file with the required column format")
 
     if not (bank_file and liab_file):
-        banner("info", "Upload the bank statement and GST liability files to begin.")
+        _BANK_ICON = ('<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--ga-primary)" '
+                      'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+                      '<rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>'
+                      '<line x1="1" y1="10" x2="23" y2="10"/>'
+                      '</svg>')
+        st.markdown(
+            '<div class="ga-empty-state">' + _BANK_ICON +
+            '<div class="ga-empty-title">Upload bank statement and liability file</div>'
+            '<div class="ga-empty-body">Match your bank payments against GSTR-3B liability. '
+            'Unpaid, late, and underpaid entries are flagged automatically.</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
         with st.expander("Expected columns"):
             cc1, cc2 = st.columns(2)
             cc1.markdown("**Bank statement**\n\n`date` · `description` · `debit` · `credit`")
@@ -871,6 +1030,7 @@ def render_payment_module() -> None:
         return
 
     bank_path = liab_path = None
+    _m3_ok = False
     try:
         with st.status("Matching payments…", expanded=False) as _status:
             _status.update(label="Reading files…")
@@ -899,7 +1059,7 @@ def render_payment_module() -> None:
             "unpaid": int(s["unpaid"]),
             "late": int(s["late_payments"]),
         })
-        st.rerun()
+        _m3_ok = True
     except Exception as exc:
         render_error(exc)
         track_event("module_error", st.session_state.session_id, {
@@ -908,6 +1068,8 @@ def render_payment_module() -> None:
         })
     finally:
         cleanup_paths(bank_path, liab_path)
+    if _m3_ok:
+        st.rerun()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1236,6 +1398,40 @@ def render_help_module() -> None:
         unsafe_allow_html=True,
     )
 
+def _render_recent_strip() -> None:
+    """Horizontal 'Recent activity' strip showing up to 3 most recent runs."""
+    hist = st.session_state.history
+    if not hist:
+        return
+    items = hist[:3]
+    cols = st.columns(len(items))
+    for col, h in zip(cols, items):
+        with col:
+            st.markdown(
+                f'<div class="ga-recent-card">'
+                f'<div class="ga-recent-module">{h["module"]}</div>'
+                f'<div class="ga-recent-summary">{h["summary"]}</div>'
+                f'<div class="ga-recent-time">{h["time"]}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    if len(hist) > 3:
+        with st.expander(f"Show all {len(hist)} runs", expanded=False):
+            for i, h in enumerate(hist):
+                c1, c2 = st.columns([2, 5])
+                c1.caption(h["time"])
+                c2.markdown(f"**{h['module']}** — {h['summary']}")
+            if st.button("Clear history", type="secondary", key="clear_hist"):
+                st.session_state.history = []
+                _persist()
+                st.rerun()
+    else:
+        if st.button("Clear history", type="secondary", key="clear_hist"):
+            st.session_state.history = []
+            _persist()
+            st.rerun()
+
+
 def render_history_panel() -> None:
     if not st.session_state.show_history:
         return
@@ -1288,21 +1484,15 @@ def main() -> None:
 
     render_topbar()
 
-    # History toggle row
-    _, _, hcol = st.columns([6, 1, 1])
-    with hcol:
-        st.session_state.show_history = st.toggle(
-            "History",
-            value=st.session_state.show_history,
-            key="history_toggle",
-        )
-    render_history_panel()
+    # Recent activity strip — always visible when history exists
+    _render_recent_strip()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "GSTR-2A / 2B",
+    _is_new = not st.session_state.history
+    _t1_label = "✦ GSTR-2B Recon  ← start here" if _is_new else "GSTR-2B Recon"
+    tab1, tab2, tab3, tab4 = st.tabs([
+        _t1_label,
         "Invoice OCR",
         "Payment Recon",
-        "Sample Data",
         "Help & Support",
     ])
     with tab1:
@@ -1312,8 +1502,6 @@ def main() -> None:
     with tab3:
         render_payment_module()
     with tab4:
-        render_samples_module()
-    with tab5:
         render_help_module()
 
     render_footer()

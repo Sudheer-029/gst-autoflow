@@ -5,6 +5,7 @@ Plotly figures. No I/O, no Streamlit imports here — keeps logic testable.
 import pandas as pd
 import plotly.graph_objects as go
 
+
 # Calm, finance-tool palette. Avoids saturated reds/greens used as primary fills.
 PALETTE = {
     "primary":   "#3949AB",   # indigo
@@ -21,8 +22,8 @@ PALETTE = {
 # Shared layout defaults — applied to every chart for visual consistency.
 _LAYOUT_BASE = dict(
     font=dict(family="Inter, system-ui, sans-serif", size=12, color=PALETTE["ink"]),
-    plot_bgcolor="white",
-    paper_bgcolor="white",
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
     margin=dict(l=20, r=20, t=56, b=40),
     title=dict(font=dict(size=14, color=PALETTE["ink"]), x=0, xanchor="left"),
     hoverlabel=dict(font_family="Inter, system-ui, sans-serif"),
