@@ -34,7 +34,7 @@ RE_INV_NO = _c(
     r'document\s*(?:no|number)|'
     r'ref(?:erence)?\s*(?:no|number)|'
     r'voucher\s*(?:no\.?|number)|'
-    r'challan\s*(?:no|number)|'
+    r'challan\s*(?:no|number|#|num)|'
     r'receipt\s*(?:no|number)'
     r')[.:\s#\-]*([A-Z0-9][A-Z0-9\-/_.]{1,30})'
 )
