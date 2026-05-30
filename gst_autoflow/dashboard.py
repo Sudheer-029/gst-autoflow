@@ -249,7 +249,8 @@ def ocr_confidence_chart(df: pd.DataFrame) -> go.Figure:
 def ocr_amount_table(df: pd.DataFrame) -> pd.DataFrame:
     """Return a clean display DataFrame for OCR results."""
     cols = ["file", "vendor_gstin", "invoice_no", "invoice_date",
-            "taxable_amount", "igst", "cgst", "sgst", "total_amount", "confidence"]
+            "taxable_amount", "igst", "cgst", "sgst", "total_amount",
+            "confidence", "extraction_status"]
     present = [c for c in cols if c in df.columns]
     return df[present].copy()
 

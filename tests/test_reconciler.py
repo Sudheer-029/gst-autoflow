@@ -117,3 +117,16 @@ def test_claimable_itc_excludes_mismatched_rows(tmp_path):
     assert len(r["amount_mismatch"]) == 1
     # only CLEAN row's IGST counts
     assert r["summary"]["claimable_itc"] == pytest.approx(900.0, abs=1.0)
+
+
+def test_amount_at_exact_tolerance_boundary(tmp_path):
+    """diff == TOLERANCE exactly is NOT flagged — boundary check is strict (> not >=)."""
+    pr  = _excel(pd.DataFrame([_pr_row(igst=1800.0)]),              str(tmp_path / "pr.xlsx"))
+    g2a = _excel(pd.DataFrame([_g2a_row(igst=1800.0 + TOLERANCE)]), str(tmp_path / "g2a.xlsx"))
+
+    r = reconcile(pr, g2a)
+
+    assert len(r["matched"]) == 1, (
+        f"diff == TOLERANCE should be a clean match (TOLERANCE={TOLERANCE})"
+    )
+    assert len(r["amount_mismatch"]) == 0

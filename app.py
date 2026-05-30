@@ -601,14 +601,6 @@ def _show_mod1_results(cache: dict) -> None:
         st.dataframe(results["amount_mismatch"], use_container_width=True)
 
 
-def _wf_step(cache_key: str, has_files: bool) -> int:
-    """1=upload, 2=files ready, 3=results showing"""
-    if st.session_state.get(cache_key):
-        return 3
-    if has_files:
-        return 2
-    return 1
-
 
 def render_gstr2a_module() -> None:
     section_header(

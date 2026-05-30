@@ -93,7 +93,7 @@ def parse_invoice_folder(folder_path: str) -> pd.DataFrame:
     col_order = [
         "file", "vendor_gstin", "buyer_gstin", "invoice_no", "invoice_date",
         "taxable_amount", "igst", "cgst", "sgst", "total_amount",
-        "hsn_sac", "confidence", "extraction_method", "error",
+        "hsn_sac", "confidence", "extraction_method", "extraction_status", "error",
     ]
     present = [c for c in col_order if c in df.columns]
     return df[present]

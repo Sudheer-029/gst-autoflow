@@ -87,7 +87,7 @@ The test suite covers reconciler.py: tolerance matching, GSTIN normalisation, IT
 
 Session data is stored in `~/.gst_autoflow/sessions/` on the host running Streamlit. If multiple internal testers access the same deployed server, each tester gets a unique session ID (stored in the URL as `?s=<id>`) — sessions do not cross-contaminate unless someone deliberately shares a URL.
 
-If you are running a shared testing instance, set the `GST_SESSION_DIR` environment variable (once added) or deploy separate instances per tester to avoid the shared filesystem.
+If you are running a shared testing instance, set the `GST_SESSION_DIR` environment variable to a per-user path (e.g. `/home/<user>/.gst_autoflow/sessions`) or deploy separate instances per tester.
 
 ## Contributing
 

@@ -12,9 +12,14 @@ import time
 import uuid
 from typing import Any
 
+import os
+
 import pandas as pd
 
-_SESSION_DIR = pathlib.Path.home() / ".gst_autoflow" / "sessions"
+_SESSION_DIR = pathlib.Path(
+    os.environ.get("GST_SESSION_DIR",
+                   str(pathlib.Path.home() / ".gst_autoflow" / "sessions"))
+)
 _SESSION_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_AGE_HOURS = 48  # sessions older than this are deleted on startup
