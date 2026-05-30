@@ -13,8 +13,9 @@ from gst_autoflow.ocr_parser import parse_invoice, parse_invoice_folder
 # ── Fixture builders ─────────────────────────────────────────────────────────
 
 # Canonical invoice text: every field present, all patterns match
+# Uses "TAX INVOICE" header — the real Tally/ERPNext format (was broken before pattern fix)
 _GOOD_INVOICE_TEXT = """
-PURCHASE INVOICE
+TAX INVOICE
 
 Vendor: Acme Supplies Pvt Ltd
 GSTIN: 29AABCU9603R1ZX

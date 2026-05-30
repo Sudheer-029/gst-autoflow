@@ -30,11 +30,11 @@ RE_INV_NO = _c(
     r'invoice\s*(?:no|number|#|num)|'
     r'bill\s*(?:no|number|#)|'
     r'inv\s*(?:no|number|#)|'
-    r'tax\s*invoice\s*(?:no|number)?|'
+    r'tax\s*invoice\s*(?:no|number|#|num)|'
     r'document\s*(?:no|number)|'
     r'ref(?:erence)?\s*(?:no|number)|'
     r'voucher\s*(?:no\.?|number)|'
-    r'challan\s*(?:no|number)?|'
+    r'challan\s*(?:no|number)|'
     r'receipt\s*(?:no|number)'
     r')[.:\s#\-]*([A-Z0-9][A-Z0-9\-/_.]{1,30})'
 )
