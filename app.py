@@ -38,29 +38,10 @@ from gst_autoflow.telemetry import track as track_event
 from gst_autoflow import session_store
 
 
-# Force-reload gst_autoflow submodules on every Streamlit run.
-# Without this, hot-reload re-executes app.py but leaves the old module
-# versions in sys.modules, causing "too many values to unpack" when the
-# function signatures have changed between commits.
-import importlib as _importlib
-import gst_autoflow.report as _ga_report
-import gst_autoflow.reconciler as _ga_recon
-import gst_autoflow.ocr_parser as _ga_ocr
-import gst_autoflow.payment_recon as _ga_pay
-_importlib.reload(_ga_report)
-_importlib.reload(_ga_recon)
-_importlib.reload(_ga_ocr)
-_importlib.reload(_ga_pay)
-# Re-bind reloaded symbols
-from gst_autoflow.report import generate_report, generate_ocr_report, generate_payment_report
-from gst_autoflow.reconciler import reconcile
-from gst_autoflow.ocr_parser import parse_invoice_folder
-from gst_autoflow.payment_recon import reconcile_payments
-
 APP_NAME = "GST AutoFlow"
 _PERSIST_KEYS = ("history", "_mod1_cache", "_mod2_cache", "_mod3_cache")
 APP_VERSION = "0.1.0"
-APP_TAGLINE = "GST reconciliation, automated."
+APP_TAGLINE = "Recover your blocked ITC in minutes, not hours."
 MAX_EXCEL_MB = 5
 MAX_PDF_MB = 10
 
@@ -228,7 +209,7 @@ def render_error(exc: Exception) -> None:
         return
     banner(
         "danger",
-        f"<b>Could not complete the operation.</b> {type(exc).__name__}: {exc}",
+        f"<b>Could not complete the operation.</b> {exc}",
     )
     with st.expander("Error details (include when reporting a bug):"):
         st.code(traceback.format_exc(), language="text")
@@ -313,15 +294,22 @@ def render_next_steps(module: str, stats: dict) -> None:
 
 
 def _show_column_preview(uploaded_file, label: str) -> None:
-    """Show column detection preview immediately after file upload."""
+    """Show column detection preview immediately after file upload.
+    Result is cached by file content hash to avoid re-parsing on every rerun."""
     if uploaded_file is None:
         return
     try:
+        import hashlib as _hashlib
         import io as _io
         import pandas as _pd
         from gst_autoflow.column_mapper import map_columns as _map_cols, REQUIRED_COLS
         from gst_autoflow.validators import validate_gstin as _vgstin
-        df_peek = _pd.read_excel(_io.BytesIO(uploaded_file.getvalue()), nrows=5)
+        _file_bytes = uploaded_file.getvalue()
+        _cache_key = f"_col_preview_{_hashlib.md5(_file_bytes).hexdigest()}"
+        if st.session_state.get(_cache_key) is not None:
+            st.markdown(st.session_state[_cache_key], unsafe_allow_html=True)
+            return
+        df_peek = _pd.read_excel(_io.BytesIO(_file_bytes), nrows=5)
         result = _map_cols(df_peek)
         # Check for malformed GSTINs in the sample rows
         _gstin_col = result.col_map.get("gstin") or next(
@@ -346,13 +334,14 @@ def _show_column_preview(uploaded_file, label: str) -> None:
         status_cls = "ga-col-preview-warn" if (missing or _bad_gstins > 0) else "ga-col-preview-ok"
         _gstin_note = f" · {_bad_gstins} malformed GSTIN(s)" if _bad_gstins else ""
         msg = f"Column check: {len(mapped)} mapped" + (f", {len(missing)} missing" if missing else " — ready") + _gstin_note
-        st.markdown(
+        _html = (
             f'<div class="ga-col-preview {status_cls}">'
             f'<div class="ga-col-preview-msg">{msg}</div>'
             f'<div class="ga-col-preview-cols">{rows}</div>'
-            f'</div>',
-            unsafe_allow_html=True,
+            f'</div>'
         )
+        st.session_state[_cache_key] = _html
+        st.markdown(_html, unsafe_allow_html=True)
     except Exception:
         pass  # silent — never block the upload flow
 
@@ -379,25 +368,6 @@ def render_sidebar() -> None:
                 st.rerun()
             st.divider()
 
-        st.markdown("**Sample data**")
-        st.caption("Test the app with anonymised sample files.")
-        sample_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
-        for fname, label in [
-            ("gstr2a.xlsx",            "GSTR-2A sample"),
-            ("purchase_register.xlsx", "Purchase register"),
-            ("bank_statement.xlsx",    "Bank statement"),
-            ("gst_liability.xlsx",     "GST liability"),
-        ]:
-            fpath = os.path.join(sample_dir, fname)
-            if os.path.exists(fpath):
-                with open(fpath, "rb") as f:
-                    st.download_button(
-                        label, data=f.read(), file_name=fname,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True, key=f"sb_{fname}",
-                    )
-
-        st.divider()
         st.markdown("**Resources**")
         st.markdown(
             "- [Source on GitHub](https://github.com/Sudheer-029/gst-autoflow)\n"
@@ -423,13 +393,9 @@ def render_landing() -> None:
         f'Your files never leave your session.'
         f'</p>'
         f'<div class="ga-social-proof">'
-        f'<span class="ga-sp-item">3 modules</span>'
-        f'<span class="ga-sp-sep">·</span>'
-        f'<span class="ga-sp-item">100% client-side</span>'
-        f'<span class="ga-sp-sep">·</span>'
-        f'<span class="ga-sp-item">CGST §16(2)(aa) aligned</span>'
-        f'<span class="ga-sp-sep">·</span>'
-        f'<span class="ga-sp-item">MIT licensed</span>'
+        f'<span class="ga-sp-item">Built to the CGST §16(2)(aa) rules that govern ITC claims</span>'
+        f'<span class="ga-sp-sep"> · </span>'
+        f'<span class="ga-sp-item">Files stay in your browser session, never on our servers</span>'
         f'</div>'
         f'</div>'
         f'</div>',
@@ -614,6 +580,15 @@ def _show_mod1_results(cache: dict) -> None:
         st.dataframe(results["amount_mismatch"], use_container_width=True)
 
 
+def _wf_step(cache_key: str, has_files: bool) -> int:
+    """1=upload, 2=files ready, 3=results showing"""
+    if st.session_state.get(cache_key):
+        return 3
+    if has_files:
+        return 2
+    return 1
+
+
 def render_gstr2a_module() -> None:
     section_header(
         "GSTR-2B vs Purchase Register",
@@ -624,6 +599,7 @@ def render_gstr2a_module() -> None:
 
     # If we have cached results, show them (persists through download button clicks)
     if "_mod1_cache" in st.session_state:
+        render_workflow_steps(3)
         _show_mod1_results(st.session_state["_mod1_cache"])
         return
 
@@ -841,6 +817,7 @@ def render_ocr_module() -> None:
     )
 
     if "_mod2_cache" in st.session_state:
+        render_workflow_steps(3)
         _show_mod2_results(st.session_state["_mod2_cache"])
         return
 
@@ -996,6 +973,7 @@ def render_payment_module() -> None:
     )
 
     if "_mod3_cache" in st.session_state:
+        render_workflow_steps(3)
         _show_mod3_results(st.session_state["_mod3_cache"])
         return
 

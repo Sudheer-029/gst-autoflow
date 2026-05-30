@@ -30,6 +30,8 @@ Open the URL Streamlit prints (default `http://localhost:8501`). Sample files fo
 - No cookies that identify you
 - Optional anonymous usage telemetry (disabled by default; see below)
 
+> **Session note:** Reconciliation results are cached in the current browser session only. If you close the tab or restart the server, results are gone. Download your Excel report immediately — it is your only persistent copy.
+
 ### Optional telemetry
 
 The app can send anonymous usage events (which module ran, how many invoices — never file content). Disabled unless explicitly enabled:

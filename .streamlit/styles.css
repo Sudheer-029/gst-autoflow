@@ -772,12 +772,12 @@ a.ga-brand-link span {
 }
 .ga-sp-item {
     font-size: 0.78rem;
-    color: rgba(255,255,255,0.72);
+    color: var(--ga-muted);
     font-weight: 500;
 }
 .ga-sp-sep {
     font-size: 0.78rem;
-    color: rgba(255,255,255,0.35);
+    color: var(--ga-border);
 }
 
 /* ── #9 Recent activity strip ────────────────────────────────────────────── */
