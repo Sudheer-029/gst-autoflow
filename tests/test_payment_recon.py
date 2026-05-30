@@ -97,17 +97,8 @@ def test_unpaid_liability(tmp_path):
     assert r["summary"]["outstanding"] == pytest.approx(10000.0)
 
 
-def test_underpayment_below_tolerance_shows_as_unpaid(tmp_path):
-    """
-    Bank payment significantly below liability (> TOLERANCE gap) is NOT matched.
-
-    Current behavior: the matcher filters candidates by abs(bank_amt - liab_amt) <= TOLERANCE.
-    A large shortfall means no bank row is selected → status is "Unpaid", not "Underpaid".
-
-    This is a known gap: ⚠️ Underpaid/Overpaid statuses are currently unreachable because
-    the amount filter and the status check use the same TOLERANCE bound. A future fix should
-    match by description first, then flag Underpaid/Overpaid based on amount diff.
-    """
+def test_underpayment_flagged(tmp_path):
+    """Bank payment significantly below liability → status Underpaid, not Unpaid."""
     shortfall = TOLERANCE + 50.0
     bank = _excel(pd.DataFrame(_bank_rows(amount=10000.0 - shortfall)), str(tmp_path / "bank.xlsx"))
     liab = _excel(pd.DataFrame([_liab_row(amount=10000.0)]),            str(tmp_path / "liab.xlsx"))
@@ -115,9 +106,21 @@ def test_underpayment_below_tolerance_shows_as_unpaid(tmp_path):
     r = reconcile_payments(bank, liab)
     recon = r["reconciliation"]
 
-    # Documents current behavior — large shortfall falls through as Unpaid
-    assert "Unpaid" in recon.iloc[0]["status"]
-    assert r["summary"]["unpaid"] == 1
+    assert "Underpaid" in recon.iloc[0]["status"]
+    assert recon.iloc[0]["difference"] == pytest.approx(-shortfall, abs=0.01)
+
+
+def test_overpayment_flagged(tmp_path):
+    """Bank payment above liability by more than TOLERANCE → status Overpaid."""
+    surplus = TOLERANCE + 20.0
+    bank = _excel(pd.DataFrame(_bank_rows(amount=10000.0 + surplus)), str(tmp_path / "bank.xlsx"))
+    liab = _excel(pd.DataFrame([_liab_row(amount=10000.0)]),          str(tmp_path / "liab.xlsx"))
+
+    r = reconcile_payments(bank, liab)
+    recon = r["reconciliation"]
+
+    assert "Overpaid" in recon.iloc[0]["status"]
+    assert recon.iloc[0]["difference"] == pytest.approx(surplus, abs=0.01)
 
 
 def test_outstanding_is_total_minus_paid(tmp_path):

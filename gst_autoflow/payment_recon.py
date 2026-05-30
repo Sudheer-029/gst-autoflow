@@ -78,11 +78,14 @@ def reconcile_payments(bank_path: str, liability_path: str) -> dict:
             ~gst_payments.index.isin(matched_bank_idxs)
         ]
 
-        # Match by amount (within tolerance)
-        amt_col    = "debit"
-        amt_match  = candidates[
-            (candidates[amt_col] - liab_amt).abs() <= TOLERANCE
-        ] if amt_col in candidates.columns else pd.DataFrame()
+        # Match by closest amount among description-matched candidates.
+        # Description is the primary key; amount diff determines Matched/Underpaid/Overpaid.
+        # A hard amount filter would swallow underpayments as "Unpaid" — wrong for GST filings.
+        amt_col   = "debit"
+        amt_match = pd.DataFrame()
+        if amt_col in candidates.columns and not candidates.empty:
+            closest_idx = (candidates[amt_col] - liab_amt).abs().idxmin()
+            amt_match   = candidates.loc[[closest_idx]]
 
         if not amt_match.empty:
             bank_row = amt_match.iloc[0]
@@ -92,8 +95,8 @@ def reconcile_payments(bank_path: str, liability_path: str) -> dict:
             )
             diff   = round(float(bank_row[amt_col]) - liab_amt, 2)
             status = (
-                "✅ Matched"    if abs(diff) <= TOLERANCE else
-                "⚠️ Overpaid"   if diff > 0 else
+                "✅ Matched"   if abs(diff) <= TOLERANCE else
+                "⚠️ Overpaid"  if diff > 0 else
                 "⚠️ Underpaid"
             )
             results.append({
