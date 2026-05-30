@@ -1,29 +1,18 @@
 # GST AutoFlow
 
-> Free, open-source GST reconciliation toolkit for Indian small businesses.
+**Recover your blocked ITC in minutes, not hours.**
 
-A focused Streamlit app that automates three of the most painful, time-consuming
-GST workflows. No signup, no CA fees, no manual spreadsheets. Files are
-processed in memory and never stored.
+GST AutoFlow automates the three reconciliation tasks Indian SMBs waste the most time on every month: matching GSTR-2A/2B against your purchase register, extracting structured data from vendor PDF invoices, and reconciling bank payments against GSTR-3B liability.
 
-> **Important.** GST AutoFlow is a free utility, not certified accounting
-> software. Always verify results with a qualified CA before filing returns.
-
-## Why this exists
-
-Small business owners in India spend hours every month reconciling GSTR-2A,
-matching bank entries, and chasing suppliers who haven't filed. Existing
-solutions are either expensive enterprise software or generic Excel templates.
-This tool sits in the middle: free, focused, and built for the way Indian SMBs
-actually work.
+No signup. No CA fees. Your files are processed in memory and never stored.
 
 ## What it does
 
-| Module | Purpose |
+| Module | What you get |
 | --- | --- |
-| **GSTR-2A reconciliation** | Compare a purchase register against GSTR-2A. Identify ITC at risk, amount mismatches, and invoices not filed by suppliers. |
-| **Invoice OCR** | Extract GSTIN, invoice number, date, and amounts from vendor PDF invoices. |
-| **Payment reconciliation** | Match a bank statement against GSTR-3B liability. Find unpaid, late, and underpaid entries. |
+| **GSTR-2A / 2B Reconciliation** | See exactly which suppliers haven't filed, how much ITC is at risk, and where amounts mismatch — in one colour-coded Excel report. |
+| **Invoice OCR Parser** | Drop in vendor PDFs. Get GSTIN, invoice number, date, and tax amounts extracted automatically, with low-confidence rows flagged for manual review. |
+| **Payment Reconciliation** | Match your bank statement against GSTR-3B liability. Spot unpaid, late, and underpaid entries before the department does. |
 
 ## Quick start
 
@@ -32,45 +21,23 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Open the URL Streamlit prints (default `http://localhost:8501`), click
-**Open the toolkit**, and start uploading files. The `sample_data/` folder
-has anonymised test files for every module.
-
-## Roadmap
-
-The current release focuses on file-upload workflows. Connectors to existing
-SMB tools are next:
-
-- Tally Prime export parser (Day Book / Voucher Register Excel)
-- ERPNext / Frappe live connector (REST API + API key)
-- Zoho Books connector (OAuth)
-- Wider bank statement format coverage (HDFC, ICICI, SBI, Axis, Kotak)
-- Hindi UI option
-- Mobile-responsive layout
-- Saved column mappings (browser local storage)
-
-User accounts, persistence, and a dashboard come later — once we understand
-what people actually use.
+Open the URL Streamlit prints (default `http://localhost:8501`). Sample files for every module are in `sample_data/` — use the **Download template** buttons inside each module to get them directly.
 
 ## Privacy
 
-- Files are processed in memory and discarded when the request finishes
+- Files are processed in memory and discarded when processing completes
 - Nothing is written to a database; there is no database
 - No cookies that identify you
 - Optional anonymous usage telemetry (disabled by default; see below)
 
 ### Optional telemetry
 
-The app can send anonymous usage events (which module ran, how many invoices,
-how long it took — never file content) to help understand what's used and
-what's broken. Disabled unless explicitly enabled:
+The app can send anonymous usage events (which module ran, how many invoices — never file content). Disabled unless explicitly enabled:
 
 ```bash
 export GST_AUTOFLOW_TELEMETRY=1
 export GST_AUTOFLOW_TELEMETRY_URL=https://your-collector.example/events
 ```
-
-Self-hosted instances default to telemetry off. You stay in control.
 
 ## Project layout
 
@@ -103,21 +70,14 @@ gst-autoflow/
 - **pandas** — data processing
 - **pdfplumber** + **Pillow** — PDF text extraction
 - **plotly** — interactive charts
-- **openpyxl** / **xlsxwriter** — Excel I/O
+- **openpyxl** — Excel I/O
 
 ## Contributing
 
-Issues and PRs welcome. If you run a small business in India and have a
-reconciliation pain point this app doesn't solve, open an issue with a
-description and (if possible) a sanitised sample file. Real-world cases
-shape the roadmap.
+Issues and PRs welcome. If you run a small business in India and have a reconciliation pain point this app doesn't solve, open an issue with a description and (if possible) a sanitised sample file.
 
 ## License
 
 [MIT](LICENSE) © 2026 Sudheer Bishnoi
 
-## Author
-
-Built by Sudheer Bishnoi.
-[LinkedIn](https://www.linkedin.com/in/sudheer-bishnoi) ·
-[Portfolio](https://sudheer-029.github.io)
+Built by [Sudheer Bishnoi](https://sudheer-029.github.io) · [LinkedIn](https://www.linkedin.com/in/sudheer-bishnoi)

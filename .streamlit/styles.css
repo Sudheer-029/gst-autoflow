@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* System font stack — no external CDN calls. Inter used if locally installed. */
 
 :root {
     --ga-primary: #3949AB;
@@ -24,7 +24,7 @@
 }
 
 html, body, [class*="css"] {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Ubuntu', system-ui, sans-serif !important;
     color: var(--ga-text);
 }
 

@@ -39,7 +39,7 @@ from gst_autoflow import session_store
 
 APP_NAME = "GST AutoFlow"
 _PERSIST_KEYS = ("history", "_mod1_cache", "_mod2_cache", "_mod3_cache")
-APP_VERSION = "3.0"
+APP_VERSION = "0.1.0"
 APP_TAGLINE = "GST reconciliation, automated."
 MAX_EXCEL_MB = 5
 MAX_PDF_MB = 10
@@ -47,7 +47,7 @@ MAX_PDF_MB = 10
 
 st.set_page_config(
     page_title=f"{APP_NAME} — GST reconciliation",
-    page_icon="◆",
+    page_icon=os.path.join(os.path.dirname(__file__), "favicon.png"),
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -108,13 +108,20 @@ def _init_session() -> None:
 _init_session()
 
 
-# Load styles from external file (kept separate for readability)
+# Load styles — cached so the 16KB string isn't re-injected on every rerun
 _STYLE_PATH = os.path.join(os.path.dirname(__file__), ".streamlit", "styles.css")
-try:
-    with open(_STYLE_PATH, encoding="utf-8") as _f:
-        st.markdown(f"<style>{_f.read()}</style>", unsafe_allow_html=True)
-except OSError:
-    pass
+
+@st.cache_resource
+def _load_css() -> str:
+    try:
+        with open(_STYLE_PATH, encoding="utf-8") as _f:
+            return _f.read()
+    except OSError:
+        return ""
+
+_css = _load_css()
+if _css:
+    st.markdown(f"<style>{_css}</style>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -414,14 +421,7 @@ def render_landing() -> None:
         unsafe_allow_html=True,
     )
 
-    # Disclaimer
-    st.markdown(
-        '<div class="ga-disclaimer" style="margin-top:1.5rem;">'
-        'GST AutoFlow is a free utility, not certified accounting software. '
-        'Always verify results with a qualified CA before filing returns.'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -543,13 +543,28 @@ def render_gstr2a_module() -> None:
     statement_label = f"GSTR-{mode_short}"
 
     render_workflow_steps(1)
+    _sample_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
     c1, c2 = st.columns(2)
-    pr_file = c1.file_uploader(
-        f"Purchase register (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="pr",
-    )
-    g2a_file = c2.file_uploader(
-        f"{statement_label} (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="g2a",
-    )
+    with c1:
+        pr_file = st.file_uploader(
+            f"Purchase register (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="pr",
+        )
+        _pr_tmpl = os.path.join(_sample_dir, "purchase_register.xlsx")
+        if os.path.exists(_pr_tmpl):
+            with open(_pr_tmpl, "rb") as _f:
+                st.download_button("Download template", _f.read(), "purchase_register_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="tmpl_pr", help="Sample purchase register with the required column format")
+    with c2:
+        g2a_file = st.file_uploader(
+            f"{statement_label} (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="g2a",
+        )
+        _g2a_tmpl = os.path.join(_sample_dir, "gstr2a.xlsx")
+        if os.path.exists(_g2a_tmpl):
+            with open(_g2a_tmpl, "rb") as _f:
+                st.download_button("Download template", _f.read(), "gstr2a_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="tmpl_g2a", help="Sample GSTR-2A/2B with the required column format")
 
     if not (pr_file and g2a_file):
         banner("info", f"Upload both the purchase register and {statement_label} files to begin.")
@@ -575,21 +590,22 @@ def render_gstr2a_module() -> None:
     ):
         return
 
-    pr_path = g2a_path = report = None
+    pr_path = g2a_path = None
     try:
-        with st.spinner("Reconciling…"):
+        with st.status("Running reconciliation…", expanded=False) as _status:
+            _status.update(label="Reading files…")
             pr_path = save_upload(pr_file, ".xlsx", MAX_EXCEL_MB)
             g2a_path = save_upload(g2a_file, ".xlsx", MAX_EXCEL_MB)
+            _status.update(label="Mapping columns…")
             results = reconcile(pr_path, g2a_path, mode=mode_short)
-            report = generate_report(results)
+            _status.update(label="Generating report…")
+            report_bytes, report_name = generate_report(results)
+            _status.update(label="Done", state="complete")
         s = results["summary"]
-        # Read bytes immediately so we can delete the temp file
-        with open(report, "rb") as rf:
-            report_bytes = rf.read()
         st.session_state["_mod1_cache"] = {
             "results": results,
             "report_bytes": report_bytes,
-            "report_name": os.path.basename(report),
+            "report_name": report_name,
             "statement_label": statement_label,
         }
         _persist()
@@ -614,9 +630,6 @@ def render_gstr2a_module() -> None:
         })
     finally:
         cleanup_paths(pr_path, g2a_path)
-        if report and os.path.exists(report):
-            try: os.unlink(report)
-            except OSError: pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -697,9 +710,10 @@ def render_ocr_module() -> None:
     if not st.button("Extract invoice data", type="primary", use_container_width=True, key="btn_ocr"):
         return
 
-    tmp_dir = report = None
+    tmp_dir = None
     try:
-        with st.spinner(f"Parsing {len(uploaded_pdfs)} invoice(s)..."):
+        with st.status(f"Processing {len(uploaded_pdfs)} invoice(s)…", expanded=False) as _status:
+            _status.update(label="Saving uploads…")
             tmp_dir = tempfile.mkdtemp()
             for upf in uploaded_pdfs:
                 if upf.size / (1024 * 1024) > MAX_PDF_MB:
@@ -707,15 +721,16 @@ def render_ocr_module() -> None:
                 safe_name = os.path.basename(upf.name).encode("ascii", errors="ignore").decode()
                 with open(os.path.join(tmp_dir, safe_name), "wb") as wf:
                     wf.write(upf.read())
+            _status.update(label="Extracting fields from PDFs…")
             df = parse_invoice_folder(tmp_dir)
-            report = generate_ocr_report(df)
+            _status.update(label="Generating report…")
+            report_bytes, report_name = generate_ocr_report(df)
+            _status.update(label="Done", state="complete")
 
         high = (df["confidence"] == "high").sum() if "confidence" in df.columns else len(df)
         total_taxable = df["taxable_amount"].sum() if "taxable_amount" in df.columns else 0
         low_conf = df[df["confidence"].isin(["low", "partial"])] if "confidence" in df.columns else df.iloc[0:0]
 
-        with open(report, "rb") as rf:
-            report_bytes = rf.read()
         st.session_state["_mod2_cache"] = {
             "df": df,
             "high": high,
@@ -723,7 +738,7 @@ def render_ocr_module() -> None:
             "low_conf_files": ", ".join(low_conf["file"].tolist()) if not low_conf.empty else "",
             "low_conf_count": len(low_conf),
             "report_bytes": report_bytes,
-            "report_name": os.path.basename(report),
+            "report_name": report_name,
         }
         _persist()
         add_history("Invoice OCR", f"{len(df)} invoice(s) parsed · {fmt_inr(total_taxable)} total taxable")
@@ -742,9 +757,6 @@ def render_ocr_module() -> None:
     finally:
         if tmp_dir and os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir, ignore_errors=True)
-        if report and os.path.exists(report):
-            try: os.unlink(report)
-            except OSError: pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -821,13 +833,28 @@ def render_payment_module() -> None:
         return
 
     render_workflow_steps(1)
+    _sample_dir3 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_data")
     c1, c2 = st.columns(2)
-    bank_file = c1.file_uploader(
-        f"Bank statement (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="bank",
-    )
-    liab_file = c2.file_uploader(
-        f"GST liability (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="liab",
-    )
+    with c1:
+        bank_file = st.file_uploader(
+            f"Bank statement (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="bank",
+        )
+        _bank_tmpl = os.path.join(_sample_dir3, "bank_statement.xlsx")
+        if os.path.exists(_bank_tmpl):
+            with open(_bank_tmpl, "rb") as _f:
+                st.download_button("Download template", _f.read(), "bank_statement_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="tmpl_bank", help="Sample bank statement with the required column format")
+    with c2:
+        liab_file = st.file_uploader(
+            f"GST liability (.xlsx, max {MAX_EXCEL_MB} MB)", type=["xlsx"], key="liab",
+        )
+        _liab_tmpl = os.path.join(_sample_dir3, "gst_liability.xlsx")
+        if os.path.exists(_liab_tmpl):
+            with open(_liab_tmpl, "rb") as _f:
+                st.download_button("Download template", _f.read(), "gst_liability_template.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="tmpl_liab", help="Sample GST liability file with the required column format")
 
     if not (bank_file and liab_file):
         banner("info", "Upload the bank statement and GST liability files to begin.")
@@ -843,20 +870,22 @@ def render_payment_module() -> None:
     ):
         return
 
-    bank_path = liab_path = report = None
+    bank_path = liab_path = None
     try:
-        with st.spinner("Matching payments..."):
+        with st.status("Matching payments…", expanded=False) as _status:
+            _status.update(label="Reading files…")
             bank_path = save_upload(bank_file, ".xlsx", MAX_EXCEL_MB)
             liab_path = save_upload(liab_file, ".xlsx", MAX_EXCEL_MB)
+            _status.update(label="Matching bank entries to liabilities…")
             results = reconcile_payments(bank_path, liab_path)
-            report = generate_payment_report(results)
+            _status.update(label="Generating report…")
+            report_bytes, report_name = generate_payment_report(results)
+            _status.update(label="Done", state="complete")
         s = results["summary"]
-        with open(report, "rb") as rf:
-            report_bytes = rf.read()
         st.session_state["_mod3_cache"] = {
             "results": results,
             "report_bytes": report_bytes,
-            "report_name": os.path.basename(report),
+            "report_name": report_name,
         }
         _persist()
         add_history(
@@ -879,9 +908,6 @@ def render_payment_module() -> None:
         })
     finally:
         cleanup_paths(bank_path, liab_path)
-        if report and os.path.exists(report):
-            try: os.unlink(report)
-            except OSError: pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────

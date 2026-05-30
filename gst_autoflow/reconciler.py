@@ -72,9 +72,10 @@ def reconcile(pr_path: str, gstr2a_path: str, *, mode: str = "2B") -> dict:
     # Validate required columns exist after mapping
     if not pr_map.is_valid:
         raise ValueError(
-            f"Purchase Register is missing required columns: "
+            f"Your Purchase Register is missing required columns: "
             f"{', '.join(pr_map.missing_required)}. "
-            f"Mapping attempted: {pr_map.col_map}"
+            "Rename those columns and re-upload. "
+            "See the 'Expected columns' section below for the required names."
         )
     if not g2a_map.is_valid:
         raise ValueError(
