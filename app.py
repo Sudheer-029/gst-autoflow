@@ -37,6 +37,26 @@ from gst_autoflow.dashboard import (
 from gst_autoflow.telemetry import track as track_event
 from gst_autoflow import session_store
 
+
+# Force-reload gst_autoflow submodules on every Streamlit run.
+# Without this, hot-reload re-executes app.py but leaves the old module
+# versions in sys.modules, causing "too many values to unpack" when the
+# function signatures have changed between commits.
+import importlib as _importlib
+import gst_autoflow.report as _ga_report
+import gst_autoflow.reconciler as _ga_recon
+import gst_autoflow.ocr_parser as _ga_ocr
+import gst_autoflow.payment_recon as _ga_pay
+_importlib.reload(_ga_report)
+_importlib.reload(_ga_recon)
+_importlib.reload(_ga_ocr)
+_importlib.reload(_ga_pay)
+# Re-bind reloaded symbols
+from gst_autoflow.report import generate_report, generate_ocr_report, generate_payment_report
+from gst_autoflow.reconciler import reconcile
+from gst_autoflow.ocr_parser import parse_invoice_folder
+from gst_autoflow.payment_recon import reconcile_payments
+
 APP_NAME = "GST AutoFlow"
 _PERSIST_KEYS = ("history", "_mod1_cache", "_mod2_cache", "_mod3_cache")
 APP_VERSION = "0.1.0"
