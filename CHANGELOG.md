@@ -8,11 +8,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- GitHub Actions CI: pytest on Python 3.11 and 3.12, plus Docker image build
+- `Dockerfile` (non-root user, health check) and `.dockerignore`
+- README: CI badge, results screenshot, architecture diagram, Docker instructions
 - `GST_SESSION_DIR` env var for configurable session persistence path
 - `extraction_status: ok | partial` field in OCR parser output
 - Unit tests: `test_reconciler.py` (7), `test_payment_recon.py` (6), `test_ocr_parser.py` (5)
 
 ### Changed
+- Privacy wording in the app and README now states that results are kept for up to 48 hours (uploaded files are still never saved)
+- Replaced deprecated `inplace=True` in `reconciler.py` (pandas 4 compatibility)
 - Download filenames now include date and mode: `GST_ITC_Recon_{mode}_{YYYYMMDD}.xlsx`, `Invoice_OCR_{YYYYMMDD}.xlsx`, `Payment_Recon_{YYYYMMDD}.xlsx`
 - All six `st.metric()` cards now show contextual delta (% of total / rate)
 - Error banner no longer exposes raw exception type to users; technical details in collapsible expander

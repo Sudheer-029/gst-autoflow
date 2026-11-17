@@ -112,8 +112,10 @@ def reconcile(pr_path: str, gstr2a_path: str, *, mode: str = "2B") -> dict:
     matched         = both[~mismatch_mask].copy()
     amount_mismatch = both[mismatch_mask].copy()
 
-    for df in [matched, amount_mismatch, only_pr, only_g2a]:
-        df.drop(columns=["_merge"], errors="ignore", inplace=True)
+    matched, amount_mismatch, only_pr, only_g2a = (
+        df.drop(columns=["_merge"], errors="ignore")
+        for df in (matched, amount_mismatch, only_pr, only_g2a)
+    )
 
     # Total claimable ITC = sum of tax on cleanly matched invoices
     # (these are the ones safe to claim against 2B/2A)

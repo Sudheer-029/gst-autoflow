@@ -413,12 +413,12 @@ def render_landing() -> None:
         f'<p class="ga-hero-sub">'
         f'Match purchase register against GSTR-2A/2B, extract invoice data via OCR, '
         f'and reconcile GST payments — in minutes. No signup. No CA fees. '
-        f'Your files never leave your session.'
+        f'Uploaded files are never saved.'
         f'</p>'
         f'<div class="ga-social-proof">'
         f'<span class="ga-sp-item">Built to the CGST §16(2)(aa) rules that govern ITC claims</span>'
         f'<span class="ga-sp-sep"> · </span>'
-        f'<span class="ga-sp-item">Files stay in your browser session, never on our servers</span>'
+        f'<span class="ga-sp-item">Results auto-delete within 48 hours</span>'
         f'</div>'
         f'</div>'
         f'</div>',
@@ -439,7 +439,7 @@ def render_landing() -> None:
             track_event("landing_cta_click", st.session_state.session_id)
             st.rerun()
         st.caption(
-            "No account required · No data stored · Open source (MIT) · Free forever"
+            "No account required · Results auto-delete in 48h · Open source (MIT) · Free forever"
         )
 
     # What it does — feature grid
@@ -523,7 +523,7 @@ def render_landing() -> None:
     st.markdown(
         '<div class="ga-trust">'
         '<div class="ga-trust-item"><span class="ga-trust-check">✓</span><b>Open source</b><br>MIT licensed. Audit, fork, or self-host.</div>'
-        '<div class="ga-trust-item"><span class="ga-trust-check">✓</span><b>Zero data retention</b><br>Files processed in-session. Nothing stored.</div>'
+        '<div class="ga-trust-item"><span class="ga-trust-check">✓</span><b>Short data retention</b><br>Uploaded files are never saved. Results auto-delete in 48 hours.</div>'
         '<div class="ga-trust-item"><span class="ga-trust-check">✓</span><b>No account needed</b><br>No email, no password, no tracking pixel.</div>'
         '<div class="ga-trust-item"><span class="ga-trust-check">✓</span><b>GST-compliant logic</b><br>Aligned with CGST Act §16(2)(aa) for ITC claims.</div>'
         '</div>',
@@ -1293,7 +1293,7 @@ def render_help_module() -> None:
         ),
         (
             "My data is sensitive financial information — is it safe?",
-            "Files are processed in your browser session only. Nothing is uploaded to any external server or cloud storage. See the Privacy & Data Policy section below for full details.",
+            "Uploaded files are processed in memory on the server running the app and never saved. Results are kept for up to 48 hours for page-refresh recovery. Nothing is sent to any external server or cloud storage. See the Privacy & Data Policy section below for full details.",
         ),
         (
             "I refreshed the page and my results are gone — how do I get them back?",
@@ -1456,7 +1456,7 @@ def render_history_panel() -> None:
 def render_footer() -> None:
     st.markdown(
         f'<div class="ga-footer">'
-        f'<span>{APP_NAME} v{APP_VERSION} · Files processed in memory, never stored.</span>'
+        f'<span>{APP_NAME} v{APP_VERSION} · Uploaded files never saved; results auto-delete in 48h.</span>'
         f'<span>'
         f'<a href="https://github.com/Sudheer-029/gst-autoflow" target="_blank">Source</a> · '
         f'<a href="https://github.com/Sudheer-029/gst-autoflow/blob/master/CHANGELOG.md" target="_blank">Changelog</a> · '
