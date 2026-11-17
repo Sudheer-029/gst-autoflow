@@ -6,6 +6,8 @@
 
 **Recover your blocked ITC in minutes, not hours.**
 
+**[▶ Try the live demo](https://gst-autoflow.streamlit.app/)**: sample files are in the app's Help & Support tab, so no real data is needed.
+
 GST AutoFlow automates the three reconciliation tasks Indian SMBs waste the most time on every month: matching GSTR-2A/2B against your purchase register, extracting structured data from vendor PDF invoices, and reconciling bank payments against GSTR-3B liability.
 
 No signup. No CA fees. Uploaded files are never saved.
